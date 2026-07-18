@@ -70,6 +70,11 @@ export default function AdminPage() {
   const [msg, setMsg] = useState("");
   const [detail, setDetail] = useState<ConvDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [userDetail, setUserDetail] = useState<{
+    clientId: string;
+    conversations: ConvDetail[];
+  } | null>(null);
+  const [userLoading, setUserLoading] = useState(false);
 
   const checkAuth = useCallback(async () => {
     // Try a protected call to determine auth state.
@@ -175,6 +180,27 @@ export default function AdminPage() {
     }
   };
 
+  const viewUser = async (clientId: string) => {
+    setUserLoading(true);
+    setUserDetail(null);
+    try {
+      const r = await fetch(
+        "/api/admin/conversations?clientId=" + encodeURIComponent(clientId) + "&full=1&limit=200",
+        { cache: "no-store" }
+      );
+      const j = await r.json();
+      if (r.ok) {
+        setUserDetail({ clientId, conversations: j.conversations || [] });
+      } else {
+        setMsg("Error: " + (j.error || "could not load user"));
+      }
+    } catch (e: any) {
+      setMsg("Failed to load user: " + (e.message || "error"));
+    } finally {
+      setUserLoading(false);
+    }
+  };
+
   if (authed === null) {
     return (
       <main className="min-h-screen flex items-center justify-center">
@@ -277,12 +303,18 @@ export default function AdminPage() {
                     <td className="p-3">{u.conversations}</td>
                     <td className="p-3">{u.messages}</td>
                     <td className="p-3">{fmtDate(u.lastActive)}</td>
-                    <td className="p-3">
+                    <td className="p-3 flex gap-3">
+                      <button
+                        onClick={() => viewUser(u.clientId)}
+                        className="text-[var(--accent)] hover:underline text-xs"
+                      >
+                        View
+                      </button>
                       <button
                         onClick={() => del("user", { clientId: u.clientId })}
                         className="text-red-600 hover:underline text-xs"
                       >
-                        Delete user data
+                        Delete
                       </button>
                     </td>
                   </tr>
@@ -430,6 +462,82 @@ export default function AdminPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
             <div className="bg-[var(--card)] border border-[var(--line)] rounded-xl px-6 py-4 text-sm">
               Loading conversation…
+            </div>
+          </div>
+        )}
+
+        {/* User detail modal: all conversations + messages for a user */}
+        {userDetail && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setUserDetail(null)}
+          >
+            <div
+              className="w-full max-w-3xl max-h-[85vh] overflow-y-auto bg-[var(--card)] border border-[var(--line)] rounded-2xl p-5 shadow-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <h3 className="text-lg font-semibold">User conversations</h3>
+                  <p className="text-xs text-[var(--muted)] font-mono">
+                    {userDetail.clientId}
+                  </p>
+                  <p className="text-xs text-[var(--muted)]">
+                    {userDetail.conversations.length} conversation(s)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setUserDetail(null)}
+                  className="px-2 py-1 rounded-lg border border-[var(--line)] text-sm hover:bg-[var(--cream-2)]"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="space-y-5">
+                {userDetail.conversations.map((c) => (
+                  <div
+                    key={c.id}
+                    className="rounded-xl border border-[var(--line)] p-3"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">{c.title}</span>
+                      <span className="text-xs text-[var(--muted)]">
+                        {fmtDate(c.updatedAt)}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {c.messages.map((m, i) => (
+                        <div
+                          key={i}
+                          className="rounded-lg bg-[var(--cream)] border border-[var(--line)] p-2"
+                        >
+                          <div className="text-xs font-medium capitalize text-[var(--accent)] mb-0.5">
+                            {m.role}
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap break-words">
+                            {typeof m.content === "string"
+                              ? m.content
+                              : JSON.stringify(m.content)}
+                          </p>
+                        </div>
+                      ))}
+                      {c.messages.length === 0 && (
+                        <p className="text-[var(--muted)] text-xs">No messages.</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {userDetail.conversations.length === 0 && (
+                  <p className="text-[var(--muted)] text-sm">No conversations for this user.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {userLoading && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-[var(--card)] border border-[var(--line)] rounded-xl px-6 py-4 text-sm">
+              Loading user…
             </div>
           </div>
         )}

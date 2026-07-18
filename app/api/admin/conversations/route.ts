@@ -11,6 +11,7 @@ export async function GET(req: NextRequest) {
   if (unauthorized) return unauthorized;
 
   const clientId = req.nextUrl.searchParams.get("clientId") || undefined;
+  const full = req.nextUrl.searchParams.get("full") === "1";
   const limit = Math.min(
     parseInt(req.nextUrl.searchParams.get("limit") || "50", 10) || 50,
     200
@@ -35,6 +36,7 @@ export async function GET(req: NextRequest) {
       title: d.title,
       updatedAt: d.updatedAt,
       messageCount: Array.isArray(d.messages) ? d.messages.length : 0,
+      ...(full ? { messages: d.messages } : {}),
     }));
 
     const total = await col.countDocuments(filter);
