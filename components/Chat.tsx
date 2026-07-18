@@ -299,31 +299,37 @@ export default function Chat() {
 
   return (
     <div className="flex h-screen flex-col bg-[var(--cream)] text-[var(--ink)] dark:bg-[#14161c] dark:text-slate-100">
-      <div className="mx-auto flex h-full w-full max-w-[1200px] gap-5 px-4 py-4">
-        {/* Collapsible sidebar */}
+      <div className="relative mx-auto flex h-full w-full max-w-[1200px] gap-5 px-3 py-3 sm:px-4 sm:py-4">
+        {/* Collapsible sidebar — inline on desktop, drawer overlay on mobile */}
         {sidebarOpen && (
-          <aside className="flex w-[240px] shrink-0 flex-col animate-fade-up">
-            <Sidebar
-              theme={theme}
-              onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-              onSave={saveSettings}
-              saved={saved}
-              onExport={exportChat}
-              onClear={clear}
-              onNewChat={startNewChat}
-              conversations={conversations}
-              activeId={activeId}
-              onSelectConversation={selectConversation}
-              onDeleteConversation={deleteConversation}
+          <>
+            <div
+              className="fixed inset-0 z-20 bg-black/30 md:hidden"
+              onClick={() => setSidebarOpen(false)}
             />
-          </aside>
+            <aside className="fixed inset-y-0 left-0 z-30 flex w-[260px] max-w-[80%] flex-col bg-[var(--cream)] p-3 animate-fade-up dark:bg-[#14161c] md:static md:w-[240px] md:max-w-none md:bg-transparent md:p-0 md:shrink-0">
+              <Sidebar
+                theme={theme}
+                onToggleTheme={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+                onSave={saveSettings}
+                saved={saved}
+                onExport={exportChat}
+                onClear={clear}
+                onNewChat={startNewChat}
+                conversations={conversations}
+                activeId={activeId}
+                onSelectConversation={selectConversation}
+                onDeleteConversation={deleteConversation}
+              />
+            </aside>
+          </>
         )}
 
         <main className="flex min-w-0 flex-1 flex-col rounded-2xl border border-black/5 bg-[var(--card)]/70 shadow-sm backdrop-blur-sm dark:border-white/10 dark:bg-slate-900/60">
-          <div className="flex items-center gap-3 border-b border-black/5 px-4 py-3 dark:border-white/10">
+          <div className="flex items-center gap-2 border-b border-black/5 px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3 dark:border-white/10">
             <button
               onClick={() => setSidebarOpen((o) => !o)}
-              className="grid h-8 w-8 place-items-center rounded-md border border-transparent bg-transparent text-[var(--muted)] transition hover:bg-black/5 hover:text-[var(--ink)] dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-100"
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-md border border-transparent bg-transparent text-[var(--muted)] transition hover:bg-black/5 hover:text-[var(--ink)] dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-100"
               title={sidebarOpen ? "Hide settings" : "Show settings"}
             >
               <svg
@@ -341,15 +347,15 @@ export default function Chat() {
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-            <div className="flex items-center gap-1.5 rounded-xl border border-transparent bg-transparent px-4 py-3 shadow-none dark:border-transparent dark:bg-transparent">
-              <Logo size={36} />
+            <div className="flex min-w-0 items-center gap-1.5 rounded-xl border border-transparent bg-transparent px-1 py-1 shadow-none sm:px-4 sm:py-3 dark:border-transparent dark:bg-transparent">
+              <Logo size={32} className="shrink-0 sm:size-[36px]" />
               <div className="leading-none">
-                <h1 className="text-xl font-bold tracking-tight">TaniyAI</h1>
+                <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">TaniyAI</h1>
               </div>
             </div>
             <button
               onClick={startNewChat}
-              className="ml-auto flex items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] px-3 py-1.5 text-[var(--ink)] shadow-sm transition hover:bg-[var(--cream-2)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+              className="ml-auto flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] px-2.5 py-1.5 text-[var(--ink)] shadow-sm transition hover:bg-[var(--cream-2)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 sm:px-3"
               title="Start a new chat"
             >
               <svg
@@ -364,7 +370,7 @@ export default function Chat() {
               >
                 <path d="M12 5v14M5 12h14" />
               </svg>
-              New chat
+              <span className="hidden sm:inline">New chat</span>
             </button>
           </div>
           <MessageList messages={messages} streaming={streaming} />

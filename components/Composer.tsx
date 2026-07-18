@@ -18,7 +18,7 @@ export default function Composer({
   }
 
   return (
-    <div className="glass relative z-10 flex gap-3 border-t border-[var(--line)] p-4 dark:border-slate-800">
+    <div className="glass relative z-10 flex gap-2 border-t border-[var(--line)] p-3 sm:gap-3 sm:p-4 dark:border-slate-800">
       <div
         className="flex flex-1 flex-col rounded-xl border border-[var(--line)] bg-[var(--card)] px-4 py-2 shadow-sm focus-within:border-[var(--accent)] dark:border-slate-700 dark:bg-slate-900"
         style={{ borderRadius: "12px" }}
@@ -40,10 +40,10 @@ export default function Composer({
       <button
         onClick={submit}
         disabled={disabled || !text.trim()}
-        className="flex items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--card)] px-5 font-semibold text-[var(--ink)] shadow-sm transition hover:bg-[var(--cream-2)] disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+        className="flex shrink-0 items-center gap-2 rounded-xl border border-[var(--line)] bg-[var(--card)] px-4 font-semibold text-[var(--ink)] shadow-sm transition hover:bg-[var(--cream-2)] disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 sm:px-5"
         style={{ borderRadius: "12px" }}
       >
-        <span>Send</span>
+        <span className="hidden sm:inline">Send</span>
         <svg
           width="16"
           height="16"
