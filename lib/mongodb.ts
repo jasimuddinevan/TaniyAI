@@ -1,11 +1,22 @@
 import "./dns-setup";
 import { MongoClient, Db } from "mongodb";
 
-const uri = process.env.MONGODB_URI;
+// Accept MONGODB_URI, falling back to the MongoDB Atlas Vercel integration's
+// auto-injected variable name (TaniyAI_MONGODB_URI) if the primary is missing
+// or not a valid connection string.
+const rawUri =
+  process.env.MONGODB_URI || process.env.TaniyAI_MONGODB_URI || "";
+const uri = rawUri && /^mongodb(\+srv)?:\/\//.test(rawUri.trim())
+  ? rawUri.trim()
+  : "";
 
 if (!uri) {
   // We throw lazily (inside getDb) so the app still builds without the var set.
-  console.warn("[mongodb] MONGODB_URI is not set; persistence is disabled.");
+  console.warn(
+    "[mongodb] No valid MONGODB_URI found; persistence is disabled. " +
+      `MONGODB_URI set: ${!!process.env.MONGODB_URI}, ` +
+      `TaniyAI_MONGODB_URI set: ${!!process.env.TaniyAI_MONGODB_URI}`
+  );
 }
 
 // Reuse the client across hot-reloads / serverless invocations.
