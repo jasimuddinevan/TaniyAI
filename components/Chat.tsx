@@ -52,6 +52,11 @@ export default function Chat() {
   const [account, setAccount] = useState<AccountInfo | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("signup");
+  const [publicModel, setPublicModel] = useState<string>("tencent/hy3:free");
+  const [serviceStatus, setServiceStatus] = useState<
+    "operational" | "down" | "checking"
+  >("checking");
+  const [statusReason, setStatusReason] = useState<string>("");
   const firstPersist = useRef(true);
   const settingsFirst = useRef(true);
   const convFirst = useRef(true);
@@ -67,7 +72,8 @@ export default function Chat() {
       cid = newId();
       localStorage.setItem(CLIENT_ID_KEY, cid);
     }
-    setClientId(cid);
+    const clientIdStr: string = cid;
+    setClientId(clientIdStr);
 
     // Restore any signed-in account (cookie-based session).
     fetch("/api/account")
@@ -79,7 +85,7 @@ export default function Chat() {
 
     // Pull saved settings from the cloud (so anonymous users keep their
     // preferences across devices/browsers too).
-    fetch(`/api/settings?clientId=${encodeURIComponent(cid)}`)
+    fetch(`/api/settings?clientId=${encodeURIComponent(clientIdStr)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.settings && typeof data.settings === "object") {
@@ -108,6 +114,7 @@ export default function Chat() {
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.model) {
+          setPublicModel(data.model);
           setSettings((p) => {
             const hadLocal = JSON.parse(
               localStorage.getItem(SETTINGS_KEY) || "{}"
@@ -117,6 +124,25 @@ export default function Chat() {
         }
       })
       .catch(() => {});
+
+    // Live service-status indicator (polls /api/health).
+    const checkHealth = () => {
+      fetch("/api/health")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data) return;
+          setServiceStatus(data.status === "operational" ? "operational" : "down");
+          setStatusReason(data.reason ? String(data.reason) : "");
+          if (data.model) setPublicModel(data.model);
+        })
+        .catch(() => {
+          setServiceStatus("down");
+          setStatusReason("Cannot reach server");
+        });
+    };
+    checkHealth();
+    const healthTimer = setInterval(checkHealth, 30000);
+    return () => clearInterval(healthTimer);
     try {
       const convs = JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || "[]");
       if (Array.isArray(convs) && convs.length) {
@@ -131,7 +157,7 @@ export default function Chat() {
     } catch {}
 
     // Pull conversations from MongoDB (cloud backup) and merge with local.
-    fetch(`/api/conversations?clientId=${encodeURIComponent(cid)}`)
+    fetch(`/api/conversations?clientId=${encodeURIComponent(clientIdStr)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!data?.conversations) return;
@@ -488,6 +514,12 @@ export default function Chat() {
                 activeId={activeId}
                 onSelectConversation={selectConversation}
                 onDeleteConversation={deleteConversation}
+                model={publicModel}
+                status={serviceStatus}
+                statusReason={statusReason}
+                onModelChange={(m) =>
+                  setSettings((p) => ({ ...p, model: m }))
+                }
               />
             </aside>
           </>
