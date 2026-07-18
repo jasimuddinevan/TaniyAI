@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isBanned } from "@/lib/moderation";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,19 @@ export async function POST(req: NextRequest) {
   }
 
   const messages = body.messages ?? [];
+
+  // Enforce ban by clientId (sent from the client on each request).
+  const clientId = (body.clientId || "").toString().trim();
+  if (clientId && (await isBanned(clientId))) {
+    return NextResponse.json(
+      {
+        error:
+          "This account has been banned by a moderator. Please contact support if you think this is a mistake.",
+      },
+      { status: 403 }
+    );
+  }
+
   const payloadMessages = [{ role: "system", content: STATIC_SYSTEM_PROMPT }, ...messages];
 
   const stop = (body.stop || "").trim();

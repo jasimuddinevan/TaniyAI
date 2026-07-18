@@ -78,6 +78,11 @@ export default function AdminPage() {
   const [dangerOpen, setDangerOpen] = useState(false);
   const [confirmText, setConfirmText] = useState("");
 
+  const [banned, setBanned] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [banReason, setBanReason] = useState("");
+
   const checkAuth = useCallback(async () => {
     // Try a protected call to determine auth state.
     const r = await fetch("/api/admin/stats", { cache: "no-store" });
@@ -112,18 +117,20 @@ export default function AdminPage() {
     setLoading(true);
     setMsg("");
     try {
-      const [s, u, c, sen] = await Promise.all([
+      const [s, u, c, sen, banRes] = await Promise.all([
         fetch("/api/admin/stats", { cache: "no-store" }).then((r) => r.json()),
         fetch("/api/admin/users", { cache: "no-store" }).then((r) => r.json()),
         fetch("/api/admin/conversations?limit=100", { cache: "no-store" }).then((r) =>
           r.json()
         ),
         fetch("/api/admin/sensitive", { cache: "no-store" }).then((r) => r.json()),
+        fetch("/api/admin/ban", { cache: "no-store" }).then((r) => r.json()),
       ]);
       setStats(s);
       setUsers(u.users || []);
       setConvs(c.conversations || []);
       setSensitive(sen.sensitive || []);
+      setBanned(banRes.banned || []);
     } catch (e: any) {
       setMsg("Failed to load: " + (e.message || "error"));
     } finally {
@@ -158,6 +165,67 @@ export default function AdminPage() {
   const removeSensitive = async (id: string) => {
     const r = await fetch("/api/admin/sensitive?id=" + id, { method: "DELETE" });
     if (r.ok) loadAll();
+  };
+
+  // Auto-refresh every 15s when enabled.
+  useEffect(() => {
+    if (!authed || !autoRefresh) return;
+    const t = setInterval(() => loadAll(), 15000);
+    return () => clearInterval(t);
+  }, [authed, autoRefresh, loadAll]);
+
+  const banUser = async (clientId: string) => {
+    const r = await fetch("/api/admin/ban", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, reason: banReason }),
+    });
+    if (r.ok) {
+      setMsg("Banned " + clientId.slice(0, 8) + "…");
+      setBanReason("");
+      loadAll();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      setMsg("Error: " + (j.error || "ban failed"));
+    }
+  };
+
+  const unbanUser = async (clientId: string) => {
+    const r = await fetch("/api/admin/ban?clientId=" + encodeURIComponent(clientId), {
+      method: "DELETE",
+    });
+    if (r.ok) {
+      setMsg("Unbanned " + clientId.slice(0, 8) + "…");
+      loadAll();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      setMsg("Error: " + (j.error || "unban failed"));
+    }
+  };
+
+  const deleteMessage = async (clientId: string, id: string, index: number) => {
+    if (!confirm("Delete this single message?")) return;
+    const qs = new URLSearchParams({ clientId, id, index: String(index) }).toString();
+    const r = await fetch("/api/admin/message?" + qs, { method: "DELETE" });
+    if (r.ok) {
+      setMsg("Message deleted.");
+      viewConversation(clientId, id);
+    } else {
+      const j = await r.json().catch(() => ({}));
+      setMsg("Error: " + (j.error || "delete failed"));
+    }
+  };
+
+  const exportData = (data: unknown, filename: string) => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const viewConversation = async (clientId: string, id: string) => {
@@ -267,6 +335,30 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* Toolbar: search + refresh + auto-refresh */}
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by client ID or title…"
+            className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-[var(--accent)] text-sm"
+          />
+          <button
+            onClick={() => loadAll()}
+            className="px-3 py-2 rounded-lg border border-[var(--line)] text-sm hover:bg-[var(--cream-2)]"
+          >
+            Refresh
+          </button>
+          <label className="flex items-center gap-2 text-sm text-[var(--muted)] select-none">
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+            />
+            Auto-refresh (15s)
+          </label>
+        </div>
+
         {/* Tabs */}
         <nav className="flex gap-1 mb-4 border-b border-[var(--line)]">
           {(["users", "conversations", "sensitive"] as Tab[]).map((t) => (
@@ -295,22 +387,57 @@ export default function AdminPage() {
                   <th className="p-3">Conversations</th>
                   <th className="p-3">Messages</th>
                   <th className="p-3">Last active</th>
+                  <th className="p-3">Status</th>
                   <th className="p-3">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
+                {users
+                  .filter((u) =>
+                    u.clientId.toLowerCase().includes(search.toLowerCase())
+                  )
+                  .map((u) => {
+                    const isBanned = banned.includes(u.clientId);
+                    return (
                   <tr key={u.clientId} className="border-b border-[var(--line)] last:border-0">
                     <td className="p-3 font-mono text-xs">{u.clientId}</td>
                     <td className="p-3">{u.conversations}</td>
                     <td className="p-3">{u.messages}</td>
                     <td className="p-3">{fmtDate(u.lastActive)}</td>
-                    <td className="p-3 flex gap-3">
+                    <td className="p-3">
+                      {isBanned ? (
+                        <span className="text-xs font-medium text-red-600">Banned</span>
+                      ) : (
+                        <span className="text-xs text-[var(--muted)]">Active</span>
+                      )}
+                    </td>
+                    <td className="p-3 flex gap-3 flex-wrap">
                       <button
                         onClick={() => viewUser(u.clientId)}
                         className="text-[var(--accent)] hover:underline text-xs"
                       >
                         View
+                      </button>
+                      {isBanned ? (
+                        <button
+                          onClick={() => unbanUser(u.clientId)}
+                          className="text-[var(--green)] hover:underline text-xs"
+                        >
+                          Unban
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => banUser(u.clientId)}
+                          className="text-red-600 hover:underline text-xs"
+                        >
+                          Ban
+                        </button>
+                      )}
+                      <button
+                        onClick={() => exportData(u, "user-" + u.clientId + ".json")}
+                        className="text-[var(--muted)] hover:underline text-xs"
+                      >
+                        Export
                       </button>
                       <button
                         onClick={() => del("user", { clientId: u.clientId })}
@@ -320,11 +447,77 @@ export default function AdminPage() {
                       </button>
                     </td>
                   </tr>
+                    );
+                  })}
+                {users.filter((u) =>
+                  u.clientId.toLowerCase().includes(search.toLowerCase())
+                ).length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="p-4 text-center text-[var(--muted)]">
+                      No users yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {tab === "conversations" && (
+          <div className="overflow-x-auto bg-[var(--card)] border border-[var(--line)] rounded-xl">
+            <table className="w-full text-sm">
+              <thead className="text-left text-[var(--muted)] border-b border-[var(--line)]">
+                <tr>
+                  <th className="p-3">Title</th>
+                  <th className="p-3">Client</th>
+                  <th className="p-3">Msgs</th>
+                  <th className="p-3">Updated</th>
+                  <th className="p-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {convs
+                  .filter(
+                    (c) =>
+                      c.title.toLowerCase().includes(search.toLowerCase()) ||
+                      c.clientId.toLowerCase().includes(search.toLowerCase())
+                  )
+                  .map((c) => (
+                  <tr key={c.clientId + c.id} className="border-b border-[var(--line)] last:border-0">
+                    <td className="p-3 max-w-[220px] truncate">{c.title}</td>
+                    <td className="p-3 font-mono text-xs">{c.clientId.slice(0, 8)}…</td>
+                    <td className="p-3">{c.messageCount}</td>
+                    <td className="p-3">{fmtDate(c.updatedAt)}</td>
+                    <td className="p-3 flex gap-3">
+                      <button
+                        onClick={() => viewConversation(c.clientId, c.id)}
+                        className="text-[var(--accent)] hover:underline text-xs"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => exportData(c, "conv-" + c.id + ".json")}
+                        className="text-[var(--muted)] hover:underline text-xs"
+                      >
+                        Export
+                      </button>
+                      <button
+                        onClick={() => del("conversation", { id: c.id, clientId: c.clientId })}
+                        className="text-red-600 hover:underline text-xs"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
                 ))}
-                {users.length === 0 && (
+                {convs.filter(
+                  (c) =>
+                    c.title.toLowerCase().includes(search.toLowerCase()) ||
+                    c.clientId.toLowerCase().includes(search.toLowerCase())
+                ).length === 0 && (
                   <tr>
                     <td colSpan={5} className="p-4 text-center text-[var(--muted)]">
-                      No users yet.
+                      No conversations yet.
                     </td>
                   </tr>
                 )}
@@ -443,8 +636,16 @@ export default function AdminPage() {
                     key={i}
                     className="rounded-xl border border-[var(--line)] p-3"
                   >
-                    <div className="text-xs font-medium capitalize text-[var(--accent)] mb-1">
-                      {m.role}
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="text-xs font-medium capitalize text-[var(--accent)]">
+                        {m.role}
+                      </div>
+                      <button
+                        onClick={() => deleteMessage(detail.clientId, detail.id, i)}
+                        className="text-red-600 hover:underline text-xs"
+                      >
+                        Delete
+                      </button>
                     </div>
                     <p className="text-sm whitespace-pre-wrap break-words">
                       {typeof m.content === "string"
