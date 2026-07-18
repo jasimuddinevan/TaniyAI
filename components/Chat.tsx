@@ -77,6 +77,20 @@ export default function Chat() {
       })
       .catch(() => {});
 
+    // Pull saved settings from the cloud (so anonymous users keep their
+    // preferences across devices/browsers too).
+    fetch(`/api/settings?clientId=${encodeURIComponent(cid)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.settings && typeof data.settings === "object") {
+          setSettings((p) => ({ ...p, ...data.settings }));
+          if (data.settings.theme) {
+            setTheme(data.settings.theme);
+          }
+        }
+      })
+      .catch(() => {});
+
     try {
       const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
       if (s && typeof s === "object") {
@@ -173,10 +187,19 @@ export default function Chat() {
       settingsFirst.current = false;
       return;
     }
+    const payload = { ...settings, theme };
     try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, theme }));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload));
     } catch {}
-  }, [settings, theme]);
+    // Mirror settings to the cloud (anonymous users included).
+    if (clientId) {
+      fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, data: payload }),
+      }).catch(() => {});
+    }
+  }, [settings, theme, clientId]);
 
   function saveSettings() {
     try {
