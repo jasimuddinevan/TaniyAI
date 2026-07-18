@@ -24,6 +24,20 @@ type ConvRow = {
   messageCount: number;
 };
 
+type Message = {
+  role: string;
+  content: string;
+  [k: string]: any;
+};
+
+type ConvDetail = {
+  clientId: string;
+  id: string;
+  title: string;
+  updatedAt: number;
+  messages: Message[];
+};
+
 type SensitiveRow = {
   _id: string;
   clientId: string;
@@ -54,6 +68,8 @@ export default function AdminPage() {
   const [sensitive, setSensitive] = useState<SensitiveRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+  const [detail, setDetail] = useState<ConvDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const checkAuth = useCallback(async () => {
     // Try a protected call to determine auth state.
@@ -135,6 +151,28 @@ export default function AdminPage() {
   const removeSensitive = async (id: string) => {
     const r = await fetch("/api/admin/sensitive?id=" + id, { method: "DELETE" });
     if (r.ok) loadAll();
+  };
+
+  const viewConversation = async (clientId: string, id: string) => {
+    setDetailLoading(true);
+    setDetail(null);
+    try {
+      const r = await fetch("/api/admin/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId, id }),
+      });
+      const j = await r.json();
+      if (r.ok && j.conversation) {
+        setDetail(j.conversation);
+      } else {
+        setMsg("Error: " + (j.error || "could not load conversation"));
+      }
+    } catch (e: any) {
+      setMsg("Failed to load conversation: " + (e.message || "error"));
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   if (authed === null) {
@@ -282,6 +320,12 @@ export default function AdminPage() {
                     <td className="p-3">{fmtDate(c.updatedAt)}</td>
                     <td className="p-3 flex gap-3">
                       <button
+                        onClick={() => viewConversation(c.clientId, c.id)}
+                        className="text-[var(--accent)] hover:underline text-xs"
+                      >
+                        View
+                      </button>
+                      <button
                         onClick={() => del("conversation", { id: c.id, clientId: c.clientId })}
                         className="text-red-600 hover:underline text-xs"
                       >
@@ -331,6 +375,62 @@ export default function AdminPage() {
             {sensitive.length === 0 && (
               <p className="text-[var(--muted)] text-sm">No sensitive messages flagged.</p>
             )}
+          </div>
+        )}
+
+        {/* Conversation detail modal */}
+        {detail && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+            onClick={() => setDetail(null)}
+          >
+            <div
+              className="w-full max-w-2xl max-h-[85vh] overflow-y-auto bg-[var(--card)] border border-[var(--line)] rounded-2xl p-5 shadow-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div>
+                  <h3 className="text-lg font-semibold">{detail.title}</h3>
+                  <p className="text-xs text-[var(--muted)] font-mono">
+                    {detail.clientId} / {detail.id}
+                  </p>
+                  <p className="text-xs text-[var(--muted)]">{fmtDate(detail.updatedAt)}</p>
+                </div>
+                <button
+                  onClick={() => setDetail(null)}
+                  className="px-2 py-1 rounded-lg border border-[var(--line)] text-sm hover:bg-[var(--cream-2)]"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="space-y-3">
+                {detail.messages.map((m, i) => (
+                  <div
+                    key={i}
+                    className="rounded-xl border border-[var(--line)] p-3"
+                  >
+                    <div className="text-xs font-medium capitalize text-[var(--accent)] mb-1">
+                      {m.role}
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap break-words">
+                      {typeof m.content === "string"
+                        ? m.content
+                        : JSON.stringify(m.content)}
+                    </p>
+                  </div>
+                ))}
+                {detail.messages.length === 0 && (
+                  <p className="text-[var(--muted)] text-sm">No messages in this conversation.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {detailLoading && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+            <div className="bg-[var(--card)] border border-[var(--line)] rounded-xl px-6 py-4 text-sm">
+              Loading conversation…
+            </div>
           </div>
         )}
 
