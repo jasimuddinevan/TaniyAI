@@ -33,9 +33,15 @@ export default function MessageList({
           </p>
         </div>
       )}
-      {messages.map((m, i) => (
-        <MessageBubble key={i} role={m.role} content={m.content} />
-      ))}
+      {messages
+        .filter((m) => m.role === "user" || m.role === "assistant")
+        .map((m, i) => (
+          <MessageBubble
+            key={i}
+            role={m.role as "user" | "assistant"}
+            content={m.content}
+          />
+        ))}
       {streaming && (
         <MessageBubble role="assistant" content={streaming} streaming />
       )}
