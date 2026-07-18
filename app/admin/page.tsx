@@ -76,6 +76,7 @@ export default function AdminPage() {
   } | null>(null);
   const [userLoading, setUserLoading] = useState(false);
   const [dangerOpen, setDangerOpen] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
 
   const checkAuth = useCallback(async () => {
     // Try a protected call to determine auth state.
@@ -546,19 +547,39 @@ export default function AdminPage() {
         {/* Danger zone — compact, fixed in the corner */}
         <div className="fixed bottom-4 right-4 z-40">
           {dangerOpen ? (
-            <div className="bg-[var(--card)] border border-red-200 rounded-xl p-4 shadow-lg w-64">
-              <p className="text-xs text-[var(--muted)] mb-3">
+            <div className="bg-[var(--card)] border border-red-200 rounded-xl p-4 shadow-lg w-72">
+              <p className="text-xs text-[var(--muted)] mb-2">
                 Permanently delete ALL data. Cannot be undone.
               </p>
+              <p className="text-xs text-[var(--muted)] mb-2">
+                Type <span className="font-mono font-semibold text-red-600">DELETE</span> to
+                confirm.
+              </p>
+              <input
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-red-400 text-sm mb-3"
+              />
               <div className="flex gap-2">
                 <button
-                  onClick={() => del("all")}
-                  className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700"
+                  disabled={confirmText !== "DELETE"}
+                  onClick={() => {
+                    if (confirmText === "DELETE") {
+                      setConfirmText("");
+                      setDangerOpen(false);
+                      del("all");
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Delete all
                 </button>
                 <button
-                  onClick={() => setDangerOpen(false)}
+                  onClick={() => {
+                    setConfirmText("");
+                    setDangerOpen(false);
+                  }}
                   className="px-3 py-2 rounded-lg border border-[var(--line)] text-sm hover:bg-[var(--cream-2)]"
                 >
                   Cancel
