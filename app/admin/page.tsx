@@ -90,6 +90,9 @@ export default function AdminPage() {
     auto: false,
   });
   const [modelMsg, setModelMsg] = useState("");
+  const [testState, setTestState] = useState<
+    { status: "idle" | "testing" | "ok" | "fail"; ms?: number; text?: string; error?: string }
+  >({ status: "idle" });
   const [serviceStatus, setServiceStatus] = useState<
     "operational" | "down" | "checking"
   >("checking");
@@ -283,6 +286,25 @@ export default function AdminPage() {
     } else {
       const j = await r.json().catch(() => ({}));
       setModelMsg("Error: " + (j.error || "update failed"));
+    }
+  };
+
+  const testModel = async () => {
+    setTestState({ status: "testing" });
+    try {
+      const r = await fetch("/api/admin/model/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: modelCfg.model }),
+      });
+      const j = await r.json();
+      if (j.ok) {
+        setTestState({ status: "ok", ms: j.ms, text: j.reply });
+      } else {
+        setTestState({ status: "fail", ms: j.ms, error: j.error || "No response" });
+      }
+    } catch (e: any) {
+      setTestState({ status: "fail", error: e?.message || "Request failed" });
     }
   };
 
@@ -544,12 +566,31 @@ export default function AdminPage() {
                   </span>
                 </button>
 
-                <button
-                  onClick={saveModel}
-                  className="mt-auto w-full rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
-                >
-                  Save changes
-                </button>
+                <div className="mt-auto flex gap-2">
+                  <button
+                    onClick={testModel}
+                    disabled={testState.status === "testing"}
+                    className="flex-1 rounded-xl border border-[var(--line)] bg-[var(--cream)] px-4 py-2.5 text-sm font-semibold text-[var(--ink)] shadow-sm transition hover:border-[var(--accent)]/40 disabled:opacity-60"
+                  >
+                    {testState.status === "testing" ? "Testing…" : "Test model"}
+                  </button>
+                  <button
+                    onClick={saveModel}
+                    className="flex-1 rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                  >
+                    Save changes
+                  </button>
+                </div>
+                {testState.status === "ok" && (
+                  <p className="mt-2 text-xs font-medium text-[var(--green)]">
+                    ✓ Live — responded in {testState.ms}ms: “{testState.text}”
+                  </p>
+                )}
+                {testState.status === "fail" && (
+                  <p className="mt-2 text-xs font-medium text-rose-500">
+                    ✕ Not responding{testState.ms ? ` (${testState.ms}ms)` : ""}: {testState.error}
+                  </p>
+                )}
                 {modelMsg && (
                   <p className="mt-2 text-xs text-[var(--muted)]">{modelMsg}</p>
                 )}
