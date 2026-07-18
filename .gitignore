@@ -32,3 +32,10 @@ next-env.d.ts
 
 # local agent config (may contain secrets)
 .antigravity.json
+
+# secrets
+*.key
+*.pem
+.env
+.env.*.local
+secrets.json
