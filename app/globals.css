@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  height: 100%;
+}
+
+:root {
+  --cream: #faf8f3;
+  --cream-2: #f3efe6;
+  --ink: #1f2430;
+  --muted: #6b7280;
+  --line: #e7e1d6;
+  --card: #ffffff;
+  --accent: #4f46e5;
+  --green: #16a34a;
+  --green-soft: #ecfdf3;
+}
+
+@layer base {
+  body {
+    background: var(--cream);
+    color: var(--ink);
+  }
+  .dark body {
+    background: #14161c;
+    color: #e6e9f0;
+  }
+}
+
+@layer utilities {
+  .preloader {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: var(--cream);
+    transition: opacity 0.35s ease;
+  }
+  .dark .preloader {
+    background: #14161c;
+  }
+  .preloader.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .preloader-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    object-fit: contain;
+    animation: preloader-pulse 1.2s ease-in-out infinite;
+  }
+  .preloader-text {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--muted);
+  }
+  @keyframes preloader-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 0.85;
+    }
+    50% {
+      transform: scale(1.08);
+      opacity: 1;
+    }
+  }
+  .glass {
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(10px);
+  }
+  .dark .glass {
+    background: rgba(20, 22, 28, 0.75);
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(120, 130, 160, 0.35);
+    border-radius: 9999px;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes blink {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  50.01%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.22s ease-out both;
+}
+
+.cursor-blink::after {
+  content: "▍";
+  margin-left: 1px;
+  animation: blink 1s steps(2) infinite;
+}
+
+/* Reduce overall UI curvature for a tighter, less rounded look */
+@layer utilities {
+  .rounded-3xl {
+    border-radius: 12px;
+  }
+  .rounded-2xl {
+    border-radius: 10px;
+  }
+  .rounded-xl {
+    border-radius: 8px;
+  }
+  .rounded-lg {
+    border-radius: 6px;
+  }
+  .rounded-md {
+    border-radius: 4px;
+  }
+  .rounded {
+    border-radius: 4px;
+  }
+  .rounded-sm {
+    border-radius: 2px;
+  }
+  .rounded-tr-sm,
+  .rounded-tl-sm,
+  .rounded-tr-md,
+  .rounded-tl-md {
+    border-radius: 2px;
+  }
+}
