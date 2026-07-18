@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/admin/sensitive?id=... -> remove a flagged entry
 export async function DELETE(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
   const id = req.nextUrl.searchParams.get("id");
   if (!id) {

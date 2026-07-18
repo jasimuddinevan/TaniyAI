@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 // GET /api/admin/stats -> aggregate counts
 export async function GET(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
   try {
     const db = await getDb();

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 // DELETE /api/admin/message?clientId=...&id=...&index=...
 // Removes a single message from a stored conversation by its index.
 export async function DELETE(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
 
   const clientId = req.nextUrl.searchParams.get("clientId") || "";

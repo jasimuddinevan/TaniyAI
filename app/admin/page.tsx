@@ -82,6 +82,8 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [banReason, setBanReason] = useState("");
+  const [newKey, setNewKey] = useState("");
+  const [keyMsg, setKeyMsg] = useState("");
 
   const checkAuth = useCallback(async () => {
     // Try a protected call to determine auth state.
@@ -228,6 +230,26 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
+  const changeKey = async () => {
+    setKeyMsg("");
+    if (newKey.length < 4) {
+      setKeyMsg("Key must be at least 4 characters.");
+      return;
+    }
+    const r = await fetch("/api/admin/auth", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newKey }),
+    });
+    if (r.ok) {
+      setKeyMsg("Admin key updated. Remember it!");
+      setNewKey("");
+    } else {
+      const j = await r.json().catch(() => ({}));
+      setKeyMsg("Error: " + (j.error || "update failed"));
+    }
+  };
+
   const viewConversation = async (clientId: string, id: string) => {
     setDetailLoading(true);
     setDetail(null);
@@ -320,6 +342,30 @@ export default function AdminPage() {
             Logout
           </button>
         </header>
+
+        {/* Change admin key */}
+        <section className="bg-[var(--card)] border border-[var(--line)] rounded-xl p-4 mb-6">
+          <h2 className="text-sm font-semibold mb-2">Change admin key</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="password"
+              value={newKey}
+              onChange={(e) => setNewKey(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && changeKey()}
+              placeholder="New admin key (min 4 chars)"
+              className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-[var(--accent)] text-sm"
+            />
+            <button
+              onClick={changeKey}
+              className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90"
+            >
+              Update key
+            </button>
+          </div>
+          {keyMsg && (
+            <p className="text-xs text-[var(--muted)] mt-2">{keyMsg}</p>
+          )}
+        </section>
 
         {/* Stats */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

@@ -1,16 +1,50 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { getDb } from "./mongodb";
 
 export const ADMIN_COOKIE = "taniyai_admin";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
 
-export function getAdminKey(): string {
-  return process.env.ADMIN_KEY || "";
+// In-memory cache of the admin key (refreshed from DB/env periodically).
+let cachedKey: string | null = null;
+let cachedAt = 0;
+const CACHE_TTL = 30_000; // 30s
+
+// Read the admin key from the database (persisted), falling back to the
+// ADMIN_KEY environment variable. The DB value wins once it has been set.
+export async function getAdminKey(): Promise<string> {
+  const now = Date.now();
+  if (cachedKey !== null && now - cachedAt < CACHE_TTL) return cachedKey;
+  const envKey = process.env.ADMIN_KEY || "";
+  try {
+    const db = await getDb();
+    const doc = await db
+      .collection("config")
+      .findOne({ _id: "adminKey" } as any);
+    const key = (doc?.key as string) || envKey;
+    cachedKey = key;
+    cachedAt = now;
+    return key;
+  } catch {
+    cachedKey = envKey;
+    cachedAt = now;
+    return envKey;
+  }
+}
+
+// Persist a new admin key to the database and refresh the cache.
+export async function setAdminKey(key: string): Promise<void> {
+  const db = await getDb();
+  await db
+    .collection("config")
+    .updateOne({ _id: "adminKey" } as any, { $set: { key } }, { upsert: true });
+  cachedKey = key;
+  cachedAt = Date.now();
 }
 
 // Verify a provided key against the configured ADMIN_KEY.
-export function verifyAdminKey(key: string): boolean {
-  const expected = getAdminKey();
+export async function verifyAdminKey(key: string): Promise<boolean> {
+  const expected = await getAdminKey();
   if (!expected) return false;
   // constant-time-ish compare
   if (key.length !== expected.length) return false;
@@ -43,7 +77,7 @@ export function clearAdminCookie(res: NextResponse) {
 }
 
 // Returns true if the current request is authenticated as admin.
-export function isAdminRequest(req?: NextRequest): boolean {
+export async function isAdminRequest(req?: NextRequest): Promise<boolean> {
   const key = req
     ? req.cookies.get(ADMIN_COOKIE)?.value
     : cookies().get(ADMIN_COOKIE)?.value;
@@ -52,9 +86,9 @@ export function isAdminRequest(req?: NextRequest): boolean {
 }
 
 // Helper for admin API routes: returns a 401 response if not authenticated.
-export function requireAdmin(req: NextRequest): NextResponse | null {
-  if (!isAdminRequest(req)) {
+export async function requireAdmin(req: NextRequest): Promise<NextResponse | undefined> {
+  if (!(await isAdminRequest(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  return null;
+  return undefined;
 }

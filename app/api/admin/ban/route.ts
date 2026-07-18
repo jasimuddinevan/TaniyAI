@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 // GET /api/admin/ban -> list banned clientIds
 export async function GET(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
   try {
     const banned = await listBanned();
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/ban { clientId, reason? } -> ban
 // DELETE /api/admin/ban?clientId=... -> unban
 export async function POST(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
   try {
     const body = await req.json();
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
   try {
     const clientId = req.nextUrl.searchParams.get("clientId") || "";

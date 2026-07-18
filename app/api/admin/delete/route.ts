@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 //  - ?mode=user&clientId=...                  -> delete all conversations for a user
 //  - ?mode=all                                -> delete ALL conversations (and sensitive)
 export async function DELETE(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
 
   const mode = req.nextUrl.searchParams.get("mode");
