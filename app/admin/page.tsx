@@ -407,16 +407,51 @@ export default function AdminPage() {
         </section>
 
         {/* Model & Service status */}
-        <section className="bg-[var(--card)] border border-[var(--line)] rounded-xl p-4 shadow-sm mb-6">
-          <div className="flex flex-wrap items-start gap-4 justify-between">
-            <div className="min-w-[200px]">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="relative flex h-3.5 w-3.5">
+        <section className="relative overflow-hidden rounded-2xl border border-[var(--line)] bg-[var(--card)] shadow-sm mb-6">
+          {/* soft accent wash */}
+          <div
+            className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full opacity-[0.07]"
+            style={{ background: "var(--accent)" }}
+          />
+          <div className="relative p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`grid h-10 w-10 place-items-center rounded-xl ${
+                    serviceStatus === "operational"
+                      ? "bg-[var(--green-soft)] text-[var(--green)]"
+                      : serviceStatus === "down"
+                      ? "bg-rose-50 text-rose-500"
+                      : "bg-amber-50 text-amber-500"
+                  }`}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2a4 4 0 0 1 4 4v2h1a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3v-8a3 3 0 0 1 3-3h1V6a4 4 0 0 1 4-4z" />
+                    <circle cx="12" cy="13" r="2.5" />
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-sm font-semibold leading-tight">Model &amp; Service</h2>
+                  <p className="text-xs text-[var(--muted)]">Public AI backend configuration</p>
+                </div>
+              </div>
+
+              {/* status pill */}
+              <div
+                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                  serviceStatus === "operational"
+                    ? "border-[var(--green)]/30 bg-[var(--green-soft)] text-[var(--green)]"
+                    : serviceStatus === "down"
+                    ? "border-rose-200 bg-rose-50 text-rose-500"
+                    : "border-amber-200 bg-amber-50 text-amber-600"
+                }`}
+              >
+                <span className="relative flex h-3 w-3">
                   {serviceStatus === "operational" && (
                     <span className="absolute inline-flex h-full w-full status-ping rounded-full bg-[var(--green)]" />
                   )}
                   <span
-                    className={`relative inline-flex h-3.5 w-3.5 rounded-full ${
+                    className={`relative inline-flex h-3 w-3 rounded-full ${
                       serviceStatus === "operational"
                         ? "bg-[var(--green)]"
                         : serviceStatus === "down"
@@ -425,65 +460,100 @@ export default function AdminPage() {
                     }`}
                   />
                 </span>
-                <span
-                  className={`text-sm font-semibold ${
-                    serviceStatus === "operational"
-                      ? "text-[var(--green)]"
-                      : serviceStatus === "down"
-                      ? "text-rose-500"
-                      : "text-amber-500"
-                  }`}
-                >
-                  {serviceStatus === "operational"
-                    ? "Service operational"
-                    : serviceStatus === "down"
-                    ? "Service down"
-                    : "Checking…"}
-                </span>
+                {serviceStatus === "operational"
+                  ? "Operational"
+                  : serviceStatus === "down"
+                  ? "Service down"
+                  : "Checking…"}
               </div>
-              {serviceStatus === "down" && statusReason && (
-                <p className="text-xs text-rose-500">{statusReason}</p>
-              )}
-              <p className="text-xs text-[var(--muted)] mt-1">
-                Live status of the AI backend (OpenRouter).
-              </p>
             </div>
 
-            <div className="flex-1 min-w-[240px]">
-              <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)] mb-1">
-                Public model
-              </label>
-              <select
-                value={modelCfg.model}
-                onChange={(e) => setModelCfg((c) => ({ ...c, model: e.target.value }))}
-                className="w-full px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-[var(--accent)] text-sm"
-              >
-                <option value="tencent/hy3:free">Tencent Hy3 — Free</option>
-                <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                <option value="nvidia/nemotron-nano-12b-v2-vl:free">
-                  Nemotron Nano VL — Free
-                </option>
-                <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</option>
-                <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
-                <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
-              </select>
-              <label className="flex items-center gap-2 text-xs text-[var(--muted)] mt-2">
-                <input
-                  type="checkbox"
-                  checked={modelCfg.auto}
-                  onChange={(e) => setModelCfg((c) => ({ ...c, auto: e.target.checked }))}
-                />
-                Auto-switch to another model if this one runs out
-              </label>
-              <button
-                onClick={saveModel}
-                className="mt-2 w-full px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90"
-              >
-                Save model
-              </button>
-              {modelMsg && (
-                <p className="text-xs text-[var(--muted)] mt-2">{modelMsg}</p>
-              )}
+            {serviceStatus === "down" && statusReason && (
+              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-600">
+                {statusReason}
+              </div>
+            )}
+
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              {/* model picker */}
+              <div>
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                  Public model
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "tencent/hy3:free", name: "Tencent Hy3", free: true },
+                    { id: "openai/gpt-4o-mini", name: "GPT-4o Mini", free: false },
+                    { id: "nvidia/nemotron-nano-12b-v2-vl:free", name: "Nemotron Nano VL", free: true },
+                    { id: "anthropic/claude-sonnet-4.5", name: "Claude Sonnet 4.5", free: false },
+                    { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash", free: false },
+                    { id: "meta-llama/llama-3.1-8b-instruct", name: "Llama 3.1 8B", free: false },
+                  ].map((m) => {
+                    const active = modelCfg.model === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => setModelCfg((c) => ({ ...c, model: m.id }))}
+                        className={`flex items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-sm transition ${
+                          active
+                            ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--ink)]"
+                            : "border-[var(--line)] bg-[var(--cream)] text-[var(--muted)] hover:border-[var(--accent)]/40"
+                        }`}
+                      >
+                        <span className="truncate font-medium">{m.name}</span>
+                        {m.free && (
+                          <span className="shrink-0 rounded-full bg-[var(--green-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--green)]">
+                            Free
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* options + save */}
+              <div className="flex flex-col">
+                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                  Failover
+                </label>
+                <button
+                  onClick={() => setModelCfg((c) => ({ ...c, auto: !c.auto }))}
+                  className={`flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition ${
+                    modelCfg.auto
+                      ? "border-[var(--accent)] bg-[var(--accent)]/10"
+                      : "border-[var(--line)] bg-[var(--cream)]"
+                  }`}
+                >
+                  <span className="text-left">
+                    <span className="block font-medium text-[var(--ink)]">Auto-switch</span>
+                    <span className="block text-xs text-[var(--muted)]">
+                      Try another model if this one runs out
+                    </span>
+                  </span>
+                  <span
+                    className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+                      modelCfg.auto ? "bg-[var(--accent)]" : "bg-[var(--line)]"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+                        modelCfg.auto ? "left-[18px]" : "left-0.5"
+                      }`}
+                    />
+                  </span>
+                </button>
+
+                <button
+                  onClick={saveModel}
+                  className="mt-auto w-full rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+                >
+                  Save changes
+                </button>
+                {modelMsg && (
+                  <p className="mt-2 text-xs text-[var(--muted)]">{modelMsg}</p>
+                )}
+              </div>
             </div>
           </div>
         </section>
