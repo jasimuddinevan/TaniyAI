@@ -17,7 +17,7 @@ export interface SensitiveEntry {
 
 // GET /api/admin/sensitive -> list flagged/sensitive messages
 export async function GET(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
   try {
     const db = await getDb();
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 // POST /api/admin/sensitive -> add a sensitive message entry
 // body: { clientId, conversationId, messageIndex, role, content, note? }
 export async function POST(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
   let body: any;
   try {

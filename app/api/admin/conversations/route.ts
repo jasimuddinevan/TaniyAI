@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 // GET /api/admin/conversations?clientId=...&limit=...&skip=...
 // Lists all conversations (optionally filtered by clientId) with summary info.
 export async function GET(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
 
   const clientId = req.nextUrl.searchParams.get("clientId") || undefined;
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
 // GET single conversation detail is handled by the public route;
 // here we add a detail endpoint for admin with full messages.
 export async function POST(req: NextRequest) {
-  const unauthorized = requireAdmin(req);
+  const unauthorized = await requireAdmin(req);
   if (unauthorized) return unauthorized;
   let body: any;
   try {
