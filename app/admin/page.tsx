@@ -438,7 +438,7 @@ export default function AdminPage() {
 
               {/* status pill */}
               <div
-                className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                className={`inline-flex items-center gap-2.5 rounded-full border px-4 py-2.5 text-sm font-semibold ${
                   serviceStatus === "operational"
                     ? "border-[var(--green)]/30 bg-[var(--green-soft)] text-[var(--green)]"
                     : serviceStatus === "down"
@@ -446,12 +446,12 @@ export default function AdminPage() {
                     : "border-amber-200 bg-amber-50 text-amber-600"
                 }`}
               >
-                <span className="relative flex h-3 w-3">
+                <span className="relative flex h-4 w-4">
                   {serviceStatus === "operational" && (
                     <span className="absolute inline-flex h-full w-full status-ping rounded-full bg-[var(--green)]" />
                   )}
                   <span
-                    className={`relative inline-flex h-3 w-3 rounded-full ${
+                    className={`relative inline-flex h-4 w-4 rounded-full ${
                       serviceStatus === "operational"
                         ? "bg-[var(--green)]"
                         : serviceStatus === "down"
