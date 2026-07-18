@@ -11,6 +11,7 @@ import Sidebar from "./Sidebar";
 const SETTINGS_KEY = "openrouter_chat_settings";
 const CONVERSATIONS_KEY = "openrouter_chat_conversations";
 const ACTIVE_KEY = "openrouter_chat_active";
+const CLIENT_ID_KEY = "taniyai_client_id";
 
 interface Conversation {
   id: string;
@@ -46,13 +47,23 @@ export default function Chat() {
   const [saved, setSaved] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string>("");
   const firstPersist = useRef(true);
   const settingsFirst = useRef(true);
   const convFirst = useRef(true);
+  const loadedFromDb = useRef(false);
 
   // Load from localStorage before paint so saved messages/settings appear
-  // immediately on reload (no blank flash).
+  // immediately on reload (no blank flash). Also establish a stable clientId
+  // used to scope conversations in MongoDB.
   useLayoutEffect(() => {
+    let cid = localStorage.getItem(CLIENT_ID_KEY);
+    if (!cid) {
+      cid = newId();
+      localStorage.setItem(CLIENT_ID_KEY, cid);
+    }
+    setClientId(cid);
+
     try {
       const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
       if (s && typeof s === "object") {
@@ -75,6 +86,29 @@ export default function Chat() {
         }
       }
     } catch {}
+
+    // Pull conversations from MongoDB (cloud backup) and merge with local.
+    fetch(`/api/conversations?clientId=${encodeURIComponent(cid)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.conversations) return;
+        setConversations((local) => {
+          const byId = new Map(local.map((c) => [c.id, c]));
+          for (const c of data.conversations) {
+            const existing = byId.get(c.id);
+            // Prefer the most recently updated version.
+            if (!existing || c.updatedAt > existing.updatedAt) {
+              byId.set(c.id, c);
+            }
+          }
+          const merged = Array.from(byId.values()).sort(
+            (a, b) => b.updatedAt - a.updatedAt
+          );
+          loadedFromDb.current = true;
+          return merged;
+        });
+      })
+      .catch(() => {});
   }, []);
 
   // Persist conversations to localStorage (skip the first run so we don't overwrite)
@@ -99,6 +133,26 @@ export default function Chat() {
       }
     } catch {}
   }, [conversations, messages, activeId]);
+
+  // Mirror conversations to MongoDB (cloud backup) whenever they change.
+  useEffect(() => {
+    if (!clientId || convFirst.current) return;
+    const toSync = conversations.map((c) => ({
+      clientId,
+      id: c.id,
+      title: c.title,
+      messages: c.messages,
+      updatedAt: c.updatedAt,
+    }));
+    // Upsert each conversation (small N; fire-and-forget).
+    for (const doc of toSync) {
+      fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(doc),
+      }).catch(() => {});
+    }
+  }, [conversations, clientId]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -277,6 +331,11 @@ export default function Chat() {
       }
       return next;
     });
+    if (clientId) {
+      fetch(`/api/conversations?id=${encodeURIComponent(id)}&clientId=${encodeURIComponent(clientId)}`, {
+        method: "DELETE",
+      }).catch(() => {});
+    }
   }
 
   function exportChat() {
