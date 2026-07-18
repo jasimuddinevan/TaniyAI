@@ -343,30 +343,6 @@ export default function AdminPage() {
           </button>
         </header>
 
-        {/* Change admin key */}
-        <section className="bg-[var(--card)] border border-[var(--line)] rounded-xl p-4 mb-6">
-          <h2 className="text-sm font-semibold mb-2">Change admin key</h2>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="password"
-              value={newKey}
-              onChange={(e) => setNewKey(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && changeKey()}
-              placeholder="New admin key (min 4 chars)"
-              className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-[var(--accent)] text-sm"
-            />
-            <button
-              onClick={changeKey}
-              className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90"
-            >
-              Update key
-            </button>
-          </div>
-          {keyMsg && (
-            <p className="text-xs text-[var(--muted)] mt-2">{keyMsg}</p>
-          )}
-        </section>
-
         {/* Stats */}
         <section className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <Stat label="Users" value={stats?.totalUsers} />
@@ -791,54 +767,87 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Danger zone — compact, fixed in the corner */}
+        {/* Settings — compact, fixed in the corner */}
         <div className="fixed bottom-4 right-4 z-40">
           {dangerOpen ? (
-            <div className="bg-[var(--card)] border border-red-200 rounded-xl p-4 shadow-lg w-72">
-              <p className="text-xs text-[var(--muted)] mb-2">
-                Permanently delete ALL data. Cannot be undone.
-              </p>
-              <p className="text-xs text-[var(--muted)] mb-2">
-                Type <span className="font-mono font-semibold text-red-600">DELETE</span> to
-                confirm.
-              </p>
-              <input
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="DELETE"
-                className="w-full px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-red-400 text-sm mb-3"
-              />
-              <div className="flex gap-2">
+            <div className="bg-[var(--card)] border border-[var(--line)] rounded-xl p-4 shadow-lg w-80 max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold">Settings</h3>
                 <button
-                  disabled={confirmText !== "DELETE"}
-                  onClick={() => {
-                    if (confirmText === "DELETE") {
-                      setConfirmText("");
-                      setDangerOpen(false);
-                      del("all");
-                    }
-                  }}
-                  className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  onClick={() => setDangerOpen(false)}
+                  className="px-2 py-1 rounded-lg border border-[var(--line)] text-sm hover:bg-[var(--cream-2)]"
                 >
-                  Delete all
+                  Close
                 </button>
-                <button
-                  onClick={() => {
-                    setConfirmText("");
-                    setDangerOpen(false);
-                  }}
-                  className="px-3 py-2 rounded-lg border border-[var(--line)] text-sm hover:bg-[var(--cream-2)]"
-                >
-                  Cancel
-                </button>
+              </div>
+
+              {/* Change admin key */}
+              <div className="mb-4">
+                <h4 className="text-xs font-semibold text-[var(--muted)] mb-2 uppercase tracking-wide">
+                  Change admin key
+                </h4>
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="password"
+                    value={newKey}
+                    onChange={(e) => setNewKey(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && changeKey()}
+                    placeholder="New admin key (min 4 chars)"
+                    className="w-full px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-[var(--accent)] text-sm"
+                  />
+                  <button
+                    onClick={changeKey}
+                    className="w-full px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90"
+                  >
+                    Update key
+                  </button>
+                  {keyMsg && (
+                    <p className="text-xs text-[var(--muted)]">{keyMsg}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Delete all data */}
+              <div className="border-t border-[var(--line)] pt-4">
+                <h4 className="text-xs font-semibold text-red-600 mb-2 uppercase tracking-wide">
+                  Danger zone
+                </h4>
+                <p className="text-xs text-[var(--muted)] mb-2">
+                  Permanently delete ALL data. Cannot be undone.
+                </p>
+                <p className="text-xs text-[var(--muted)] mb-2">
+                  Type <span className="font-mono font-semibold text-red-600">DELETE</span> to
+                  confirm.
+                </p>
+                <input
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="DELETE"
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-red-400 text-sm mb-3"
+                />
+                <div className="flex gap-2">
+                  <button
+                    disabled={confirmText !== "DELETE"}
+                    onClick={() => {
+                      if (confirmText === "DELETE") {
+                        setConfirmText("");
+                        setDangerOpen(false);
+                        del("all");
+                      }
+                    }}
+                    className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Delete all
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
             <button
               onClick={() => setDangerOpen(true)}
-              className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium bg-[var(--card)] shadow-sm hover:bg-red-50"
+              className="px-3 py-2 rounded-lg border border-[var(--line)] text-[var(--muted)] text-xs font-medium bg-[var(--card)] shadow-sm hover:bg-[var(--cream-2)]"
             >
-              Danger zone
+              Settings
             </button>
           )}
         </div>
