@@ -411,12 +411,12 @@ export default function AdminPage() {
           <div className="flex flex-wrap items-start gap-4 justify-between">
             <div className="min-w-[200px]">
               <div className="flex items-center gap-2 mb-1">
-                <span className="relative flex h-2.5 w-2.5">
+                <span className="relative flex h-3.5 w-3.5">
                   {serviceStatus === "operational" && (
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--green)] opacity-75" />
+                    <span className="absolute inline-flex h-full w-full status-ping rounded-full bg-[var(--green)]" />
                   )}
                   <span
-                    className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
+                    className={`relative inline-flex h-3.5 w-3.5 rounded-full ${
                       serviceStatus === "operational"
                         ? "bg-[var(--green)]"
                         : serviceStatus === "down"
@@ -458,10 +458,10 @@ export default function AdminPage() {
                 onChange={(e) => setModelCfg((c) => ({ ...c, model: e.target.value }))}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-[var(--accent)] text-sm"
               >
-                <option value="tencent/hy3:free">Tencent Hy3 (free)</option>
+                <option value="tencent/hy3:free">Tencent Hy3 — Free</option>
                 <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
                 <option value="nvidia/nemotron-nano-12b-v2-vl:free">
-                  Nemotron Nano VL (free)
+                  Nemotron Nano VL — Free
                 </option>
                 <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</option>
                 <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>

@@ -61,12 +61,12 @@ export default function Sidebar({
       <div className="rounded-xl border border-[var(--line)] bg-[var(--card)] p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="relative flex h-2.5 w-2.5">
+            <span className="relative flex h-3.5 w-3.5">
               {status === "operational" && (
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--green)] opacity-75" />
+                <span className="absolute inline-flex h-full w-full status-ping rounded-full bg-[var(--green)]" />
               )}
               <span
-                className={`relative inline-flex h-2.5 w-2.5 rounded-full ${statusDot}`}
+                className={`relative inline-flex h-3.5 w-3.5 rounded-full ${statusDot}`}
               />
             </span>
             <span className={`text-[12px] font-semibold ${statusColor}`}>
