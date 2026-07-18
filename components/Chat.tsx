@@ -289,14 +289,17 @@ export default function Chat() {
     }
   }
 
-  async function streamFrom(next: Message[], modelOverride?: string) {
+  async function streamFrom(next: Message[]) {
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: modelOverride ?? settings.model,
+          // NOTE: Do NOT send a model from the client. The admin-configured
+          // public model (plus auto-fallback) is decided server-side in
+          // /api/chat. Sending a stale settings.model would override the
+          // admin choice and disable auto-switching.
           temperature: settings.temperature,
           max_tokens: settings.maxTokens,
           top_p: settings.topP,
