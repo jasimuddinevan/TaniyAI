@@ -75,6 +75,7 @@ export default function AdminPage() {
     conversations: ConvDetail[];
   } | null>(null);
   const [userLoading, setUserLoading] = useState(false);
+  const [dangerOpen, setDangerOpen] = useState(false);
 
   const checkAuth = useCallback(async () => {
     // Try a protected call to determine auth state.
@@ -542,19 +543,37 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Danger zone */}
-        <section className="mt-8 bg-[var(--card)] border border-red-200 rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-red-700 mb-2">Danger zone</h2>
-          <p className="text-xs text-[var(--muted)] mb-3">
-            Permanently delete data. This cannot be undone.
-          </p>
-          <button
-            onClick={() => del("all")}
-            className="px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700"
-          >
-            Delete ALL data
-          </button>
-        </section>
+        {/* Danger zone — compact, fixed in the corner */}
+        <div className="fixed bottom-4 right-4 z-40">
+          {dangerOpen ? (
+            <div className="bg-[var(--card)] border border-red-200 rounded-xl p-4 shadow-lg w-64">
+              <p className="text-xs text-[var(--muted)] mb-3">
+                Permanently delete ALL data. Cannot be undone.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => del("all")}
+                  className="flex-1 px-3 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700"
+                >
+                  Delete all
+                </button>
+                <button
+                  onClick={() => setDangerOpen(false)}
+                  className="px-3 py-2 rounded-lg border border-[var(--line)] text-sm hover:bg-[var(--cream-2)]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setDangerOpen(true)}
+              className="px-3 py-2 rounded-lg border border-red-200 text-red-600 text-xs font-medium bg-[var(--card)] shadow-sm hover:bg-red-50"
+            >
+              Danger zone
+            </button>
+          )}
+        </div>
       </div>
     </main>
   );
