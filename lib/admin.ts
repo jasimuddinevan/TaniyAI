@@ -42,6 +42,55 @@ export async function setAdminKey(key: string): Promise<void> {
   cachedAt = Date.now();
 }
 
+// ---- Public model configuration (set by admin) ----
+
+export interface ModelConfig {
+  model: string;
+  auto: boolean;
+}
+
+let cachedModel: ModelConfig | null = null;
+let cachedModelAt = 0;
+
+// Read the public model config from the database, falling back to the
+// TENIYAI_MODEL env var or the built-in default.
+export async function getModelConfig(): Promise<ModelConfig> {
+  const now = Date.now();
+  if (cachedModel !== null && now - cachedModelAt < CACHE_TTL) return cachedModel;
+  const envModel = process.env.TENIYAI_MODEL || "tencent/hy3:free";
+  try {
+    const db = await getDb();
+    const doc = await db
+      .collection("config")
+      .findOne({ _id: "modelConfig" } as any);
+    const cfg: ModelConfig = {
+      model: (doc?.model as string) || envModel,
+      auto: Boolean(doc?.auto),
+    };
+    cachedModel = cfg;
+    cachedModelAt = now;
+    return cfg;
+  } catch {
+    cachedModel = { model: envModel, auto: false };
+    cachedModelAt = now;
+    return cachedModel;
+  }
+}
+
+// Persist the public model config and refresh the cache.
+export async function setModelConfig(model: string, auto: boolean): Promise<void> {
+  const db = await getDb();
+  await db
+    .collection("config")
+    .updateOne(
+      { _id: "modelConfig" } as any,
+      { $set: { model, auto } },
+      { upsert: true }
+    );
+  cachedModel = { model, auto };
+  cachedModelAt = Date.now();
+}
+
 // Verify a provided key against the configured ADMIN_KEY.
 export async function verifyAdminKey(key: string): Promise<boolean> {
   const expected = await getAdminKey();

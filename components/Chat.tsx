@@ -101,6 +101,22 @@ export default function Chat() {
         }
       }
     } catch {}
+
+    // Apply the admin-configured public model as the default, unless the user
+    // has already picked a model locally (their choice wins).
+    fetch("/api/model")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.model) {
+          setSettings((p) => {
+            const hadLocal = JSON.parse(
+              localStorage.getItem(SETTINGS_KEY) || "{}"
+            ).model;
+            return hadLocal ? p : { ...p, model: data.model };
+          });
+        }
+      })
+      .catch(() => {});
     try {
       const convs = JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || "[]");
       if (Array.isArray(convs) && convs.length) {

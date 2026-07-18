@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isBanned } from "@/lib/moderation";
+import { getModelConfig } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
+
+// Fallback models used when "auto" mode is enabled and the primary model
+// fails (e.g. free-tier credits exhausted -> 402/429). Ordered by preference.
+const FALLBACK_MODELS = [
+  "tencent/hy3:free",
+  "nvidia/nemotron-nano-12b-v2-vl:free",
+  "meta-llama/llama-3.1-8b-instruct",
+  "openai/gpt-4o-mini",
+  "google/gemini-2.5-flash",
+];
 
 // Static system message injected by the backend (users cannot override it).
 const STATIC_SYSTEM_PROMPT =
@@ -45,38 +56,60 @@ export async function POST(req: NextRequest) {
 
   const payloadMessages = [{ role: "system", content: STATIC_SYSTEM_PROMPT }, ...messages];
 
+  // Determine which model to use. The admin-configured public model wins;
+  // the client may still override it. When "auto" mode is on, we also try
+  // fallback models if the primary fails.
+  const cfg = await getModelConfig();
+  const requested = body.model || cfg.model;
+  const auto = cfg.auto && !body.model; // explicit client model disables auto
+  const modelQueue = auto
+    ? [requested, ...FALLBACK_MODELS.filter((m) => m !== requested)]
+    : [requested];
+
   const stop = (body.stop || "").trim();
-  const body2: any = {
-    model: body.model || "tencent/hy3:free",
-    stream: body.stream !== false,
-    temperature: body.temperature ?? 0.7,
-    max_tokens: body.max_tokens ?? 1024,
-    top_p: body.top_p ?? 1,
-    frequency_penalty: body.frequency_penalty ?? 0,
-    presence_penalty: body.presence_penalty ?? 0,
-    messages: payloadMessages,
-  };
-  if (stop) body2.stop = stop.split(",").map((s: string) => s.trim()).filter(Boolean);
 
-  const upstream = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": process.env.APP_URL || "https://openrouter-chat.vercel.app",
-      "X-Title": "TaniyAI",
-    },
-    body: JSON.stringify(body2),
-  });
+  let upstream: Response | null = null;
+  let lastError = "";
+  for (const model of modelQueue) {
+    const body2: any = {
+      model,
+      stream: body.stream !== false,
+      temperature: body.temperature ?? 0.7,
+      max_tokens: body.max_tokens ?? 1024,
+      top_p: body.top_p ?? 1,
+      frequency_penalty: body.frequency_penalty ?? 0,
+      presence_penalty: body.presence_penalty ?? 0,
+      messages: payloadMessages,
+    };
+    if (stop) body2.stop = stop.split(",").map((s: string) => s.trim()).filter(Boolean);
 
-  if (!upstream.ok || !upstream.body) {
-    const text = await upstream.text();
-    return new Response(`Error ${upstream.status}: ${text}`, {
-      status: upstream.status,
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.APP_URL || "https://openrouter-chat.vercel.app",
+        "X-Title": "TaniyAI",
+      },
+      body: JSON.stringify(body2),
+    });
+
+    if (res.ok && res.body) {
+      upstream = res;
+      break;
+    }
+    lastError = `Error ${res.status}: ${await res.text()}`;
+    // Only retry on quota/rate-limit errors when auto mode is enabled.
+    if (!auto || (res.status !== 402 && res.status !== 429)) break;
+  }
+
+  if (!upstream || !upstream.ok || !upstream.body) {
+    return new Response(lastError || "All models failed.", {
+      status: 502,
     });
   }
 
-  if (body2.stream) {
+  if (body.stream !== false) {
     return new Response(upstream.body, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",

@@ -85,6 +85,12 @@ export default function AdminPage() {
   const [newKey, setNewKey] = useState("");
   const [keyMsg, setKeyMsg] = useState("");
 
+  const [modelCfg, setModelCfg] = useState<{ model: string; auto: boolean }>({
+    model: "tencent/hy3:free",
+    auto: false,
+  });
+  const [modelMsg, setModelMsg] = useState("");
+
   const checkAuth = useCallback(async () => {
     // Try a protected call to determine auth state.
     const r = await fetch("/api/admin/stats", { cache: "no-store" });
@@ -247,6 +253,32 @@ export default function AdminPage() {
     } else {
       const j = await r.json().catch(() => ({}));
       setKeyMsg("Error: " + (j.error || "update failed"));
+    }
+  };
+
+  const loadModel = useCallback(async () => {
+    try {
+      const r = await fetch("/api/admin/model", { cache: "no-store" });
+      if (r.ok) setModelCfg(await r.json());
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (authed) loadModel();
+  }, [authed, loadModel]);
+
+  const saveModel = async () => {
+    setModelMsg("");
+    const r = await fetch("/api/admin/model", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: modelCfg.model, auto: modelCfg.auto }),
+    });
+    if (r.ok) {
+      setModelMsg("Public model updated.");
+    } else {
+      const j = await r.json().catch(() => ({}));
+      setModelMsg("Error: " + (j.error || "update failed"));
     }
   };
 
@@ -805,6 +837,44 @@ export default function AdminPage() {
                     <p className="text-xs text-[var(--muted)]">{keyMsg}</p>
                   )}
                 </div>
+              </div>
+
+              {/* Public model */}
+              <div className="border-t border-[var(--line)] pt-4 mb-4">
+                <h4 className="text-xs font-semibold text-[var(--muted)] mb-2 uppercase tracking-wide">
+                  Public model
+                </h4>
+                <select
+                  value={modelCfg.model}
+                  onChange={(e) => setModelCfg((c) => ({ ...c, model: e.target.value }))}
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-[var(--accent)] text-sm mb-2"
+                >
+                  <option value="tencent/hy3:free">Tencent Hy3 (free)</option>
+                  <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="nvidia/nemotron-nano-12b-v2-vl:free">
+                    Nemotron Nano VL (free)
+                  </option>
+                  <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</option>
+                  <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
+                  <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
+                </select>
+                <label className="flex items-center gap-2 text-xs text-[var(--muted)] mb-2">
+                  <input
+                    type="checkbox"
+                    checked={modelCfg.auto}
+                    onChange={(e) => setModelCfg((c) => ({ ...c, auto: e.target.checked }))}
+                  />
+                  Auto-switch to another model if this one runs out
+                </label>
+                <button
+                  onClick={saveModel}
+                  className="w-full px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90"
+                >
+                  Save model
+                </button>
+                {modelMsg && (
+                  <p className="text-xs text-[var(--muted)] mt-2">{modelMsg}</p>
+                )}
               </div>
 
               {/* Delete all data */}
