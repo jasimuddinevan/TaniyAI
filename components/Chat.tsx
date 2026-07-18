@@ -514,12 +514,8 @@ export default function Chat() {
                 activeId={activeId}
                 onSelectConversation={selectConversation}
                 onDeleteConversation={deleteConversation}
-                model={publicModel}
                 status={serviceStatus}
                 statusReason={statusReason}
-                onModelChange={(m) =>
-                  setSettings((p) => ({ ...p, model: m }))
-                }
               />
             </aside>
           </>

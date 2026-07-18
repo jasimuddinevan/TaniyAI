@@ -19,10 +19,8 @@ export default function Sidebar({
   activeId,
   onSelectConversation,
   onDeleteConversation,
-  model,
   status,
   statusReason,
-  onModelChange,
 }: {
   theme: "dark" | "light";
   onToggleTheme: () => void;
@@ -35,21 +33,9 @@ export default function Sidebar({
   activeId: string | null;
   onSelectConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
-  model: string;
   status: "operational" | "down" | "checking";
   statusReason?: string;
-  onModelChange: (model: string) => void;
 }) {
-  const MODEL_OPTIONS = [
-    { id: "tencent/hy3:free", name: "Tencent Hy3 (free)" },
-    { id: "openai/gpt-4o-mini", name: "GPT-4o Mini" },
-    { id: "nvidia/nemotron-nano-12b-v2-vl:free", name: "Nemotron Nano VL (free)" },
-    { id: "anthropic/claude-sonnet-4.5", name: "Claude Sonnet 4.5" },
-    { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-    { id: "meta-llama/llama-3.1-8b-instruct", name: "Llama 3.1 8B" },
-  ];
-  const current = MODEL_OPTIONS.find((m) => m.id === model)?.name || model;
-
   const statusDot =
     status === "operational"
       ? "bg-[var(--green)]"
@@ -93,26 +79,6 @@ export default function Sidebar({
             {statusReason}
           </p>
         )}
-
-        <div className="mt-3">
-          <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">
-            Model
-          </label>
-          <select
-            value={model}
-            onChange={(e) => onModelChange(e.target.value)}
-            className="w-full rounded-lg border border-[var(--line)] bg-[var(--cream)] px-2.5 py-1.5 text-[12px] text-[var(--ink)] outline-none transition focus:border-[var(--accent)] dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-          >
-            {MODEL_OPTIONS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1 text-[11px] leading-snug text-[var(--muted)]">
-            Active: <span className="font-medium text-[var(--ink)] dark:text-slate-100">{current}</span>
-          </p>
-        </div>
       </div>
 
       {/* Chat history */}

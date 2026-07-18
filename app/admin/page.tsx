@@ -90,6 +90,10 @@ export default function AdminPage() {
     auto: false,
   });
   const [modelMsg, setModelMsg] = useState("");
+  const [serviceStatus, setServiceStatus] = useState<
+    "operational" | "down" | "checking"
+  >("checking");
+  const [statusReason, setStatusReason] = useState("");
 
   const checkAuth = useCallback(async () => {
     // Try a protected call to determine auth state.
@@ -282,6 +286,25 @@ export default function AdminPage() {
     }
   };
 
+  const checkHealth = useCallback(async () => {
+    try {
+      const r = await fetch("/api/health", { cache: "no-store" });
+      if (r.ok) {
+        const d = await r.json();
+        setServiceStatus(d.status === "operational" ? "operational" : "down");
+        setStatusReason(d.reason || "");
+        if (d.model) setModelCfg((c) => ({ ...c, model: d.model }));
+      }
+    } catch {
+      setServiceStatus("down");
+      setStatusReason("Cannot reach server");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (authed) checkHealth();
+  }, [authed, checkHealth]);
+
   const viewConversation = async (clientId: string, id: string) => {
     setDetailLoading(true);
     setDetail(null);
@@ -381,6 +404,88 @@ export default function AdminPage() {
           <Stat label="Conversations" value={stats?.totalConversations} />
           <Stat label="Messages" value={stats?.totalMessages} />
           <Stat label="Sensitive" value={stats?.totalSensitive} />
+        </section>
+
+        {/* Model & Service status */}
+        <section className="bg-[var(--card)] border border-[var(--line)] rounded-xl p-4 shadow-sm mb-6">
+          <div className="flex flex-wrap items-start gap-4 justify-between">
+            <div className="min-w-[200px]">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="relative flex h-2.5 w-2.5">
+                  {serviceStatus === "operational" && (
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--green)] opacity-75" />
+                  )}
+                  <span
+                    className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
+                      serviceStatus === "operational"
+                        ? "bg-[var(--green)]"
+                        : serviceStatus === "down"
+                        ? "bg-rose-500"
+                        : "bg-amber-400"
+                    }`}
+                  />
+                </span>
+                <span
+                  className={`text-sm font-semibold ${
+                    serviceStatus === "operational"
+                      ? "text-[var(--green)]"
+                      : serviceStatus === "down"
+                      ? "text-rose-500"
+                      : "text-amber-500"
+                  }`}
+                >
+                  {serviceStatus === "operational"
+                    ? "Service operational"
+                    : serviceStatus === "down"
+                    ? "Service down"
+                    : "Checking…"}
+                </span>
+              </div>
+              {serviceStatus === "down" && statusReason && (
+                <p className="text-xs text-rose-500">{statusReason}</p>
+              )}
+              <p className="text-xs text-[var(--muted)] mt-1">
+                Live status of the AI backend (OpenRouter).
+              </p>
+            </div>
+
+            <div className="flex-1 min-w-[240px]">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)] mb-1">
+                Public model
+              </label>
+              <select
+                value={modelCfg.model}
+                onChange={(e) => setModelCfg((c) => ({ ...c, model: e.target.value }))}
+                className="w-full px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-[var(--accent)] text-sm"
+              >
+                <option value="tencent/hy3:free">Tencent Hy3 (free)</option>
+                <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                <option value="nvidia/nemotron-nano-12b-v2-vl:free">
+                  Nemotron Nano VL (free)
+                </option>
+                <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</option>
+                <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
+                <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
+              </select>
+              <label className="flex items-center gap-2 text-xs text-[var(--muted)] mt-2">
+                <input
+                  type="checkbox"
+                  checked={modelCfg.auto}
+                  onChange={(e) => setModelCfg((c) => ({ ...c, auto: e.target.checked }))}
+                />
+                Auto-switch to another model if this one runs out
+              </label>
+              <button
+                onClick={saveModel}
+                className="mt-2 w-full px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90"
+              >
+                Save model
+              </button>
+              {modelMsg && (
+                <p className="text-xs text-[var(--muted)] mt-2">{modelMsg}</p>
+              )}
+            </div>
+          </div>
         </section>
 
         {msg && (
@@ -837,44 +942,6 @@ export default function AdminPage() {
                     <p className="text-xs text-[var(--muted)]">{keyMsg}</p>
                   )}
                 </div>
-              </div>
-
-              {/* Public model */}
-              <div className="border-t border-[var(--line)] pt-4 mb-4">
-                <h4 className="text-xs font-semibold text-[var(--muted)] mb-2 uppercase tracking-wide">
-                  Public model
-                </h4>
-                <select
-                  value={modelCfg.model}
-                  onChange={(e) => setModelCfg((c) => ({ ...c, model: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-[var(--accent)] text-sm mb-2"
-                >
-                  <option value="tencent/hy3:free">Tencent Hy3 (free)</option>
-                  <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
-                  <option value="nvidia/nemotron-nano-12b-v2-vl:free">
-                    Nemotron Nano VL (free)
-                  </option>
-                  <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</option>
-                  <option value="google/gemini-2.5-flash">Gemini 2.5 Flash</option>
-                  <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
-                </select>
-                <label className="flex items-center gap-2 text-xs text-[var(--muted)] mb-2">
-                  <input
-                    type="checkbox"
-                    checked={modelCfg.auto}
-                    onChange={(e) => setModelCfg((c) => ({ ...c, auto: e.target.checked }))}
-                  />
-                  Auto-switch to another model if this one runs out
-                </label>
-                <button
-                  onClick={saveModel}
-                  className="w-full px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90"
-                >
-                  Save model
-                </button>
-                {modelMsg && (
-                  <p className="text-xs text-[var(--muted)] mt-2">{modelMsg}</p>
-                )}
               </div>
 
               {/* Delete all data */}
