@@ -7,6 +7,7 @@ import MessageList from "./MessageList";
 import Composer from "./Composer";
 import Logo from "./Logo";
 import Sidebar from "./Sidebar";
+import AuthModal, { AccountInfo } from "./AuthModal";
 
 const SETTINGS_KEY = "openrouter_chat_settings";
 const CONVERSATIONS_KEY = "openrouter_chat_conversations";
@@ -48,10 +49,14 @@ export default function Chat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string>("");
+  const [account, setAccount] = useState<AccountInfo | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("signup");
   const firstPersist = useRef(true);
   const settingsFirst = useRef(true);
   const convFirst = useRef(true);
   const loadedFromDb = useRef(false);
+  const nudgeShown = useRef(false);
 
   // Load from localStorage before paint so saved messages/settings appear
   // immediately on reload (no blank flash). Also establish a stable clientId
@@ -63,6 +68,14 @@ export default function Chat() {
       localStorage.setItem(CLIENT_ID_KEY, cid);
     }
     setClientId(cid);
+
+    // Restore any signed-in account (cookie-based session).
+    fetch("/api/account")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.account) setAccount(data.account);
+      })
+      .catch(() => {});
 
     try {
       const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
@@ -281,6 +294,25 @@ export default function Chat() {
       }
 
       setMessages((m) => [...m, { role: "assistant", content: full }]);
+
+      // Friendly, non-blocking nudge to sign up after a few messages
+      // (only for anonymous users who haven't seen it yet).
+      if (!account && !nudgeShown.current) {
+        const userCount = next.filter((m) => m.role === "user").length;
+        if (userCount >= 3) {
+          nudgeShown.current = true;
+          setTimeout(() => {
+            setMessages((m) => [
+              ...m,
+              {
+                role: "assistant",
+                content:
+                  "💡 Loving the chat? Create a free account to save your conversations and pick up right where you left off on any device. No email confirmation needed — just your name, email, and a password. You can do it anytime from the button next to “New chat”. Totally optional!",
+              },
+            ]);
+          }, 600);
+        }
+      }
     } catch (e: any) {
       setMessages((m) => [
         ...m,
@@ -292,6 +324,41 @@ export default function Chat() {
   function clear() {
     setMessages([]);
     setStreaming("");
+  }
+
+  function openAuth(mode: "login" | "signup") {
+    setAuthMode(mode);
+    setAuthOpen(true);
+  }
+
+  function handleSignedIn(acc: AccountInfo) {
+    setAccount(acc);
+    // If this account has a different clientId, merge its conversations in.
+    if (acc.clientId && acc.clientId !== clientId) {
+      fetch(`/api/conversations?clientId=${encodeURIComponent(acc.clientId)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+          if (!data?.conversations?.length) return;
+          setConversations((local) => {
+            const byId = new Map(local.map((c) => [c.id, c]));
+            for (const c of data.conversations) {
+              const existing = byId.get(c.id);
+              if (!existing || c.updatedAt > existing.updatedAt) {
+                byId.set(c.id, c);
+              }
+            }
+            return Array.from(byId.values()).sort(
+              (a, b) => b.updatedAt - a.updatedAt
+            );
+          });
+        })
+        .catch(() => {});
+    }
+  }
+
+  async function handleLogout() {
+    await fetch("/api/account/logout", { method: "POST" }).catch(() => {});
+    setAccount(null);
   }
 
   function startNewChat() {
@@ -431,6 +498,56 @@ export default function Chat() {
               </svg>
               <span className="hidden sm:inline">New chat</span>
             </button>
+
+            {account ? (
+              <div className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] px-2.5 py-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800 sm:px-3">
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-[var(--green)]"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span className="hidden max-w-[120px] truncate text-sm font-medium sm:inline">
+                  {account.name}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="ml-1 text-[11px] font-semibold text-[var(--muted)] underline-offset-2 hover:text-[var(--ink)] hover:underline dark:hover:text-slate-100"
+                  title="Sign out"
+                >
+                  Sign out
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => openAuth("signup")}
+                className="flex shrink-0 items-center gap-1.5 rounded-lg border border-[var(--accent)] bg-[var(--accent)]/10 px-2.5 py-1.5 text-[var(--accent)] shadow-sm transition hover:bg-[var(--accent)]/20 sm:px-3"
+                title="Sign up / Log in"
+              >
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span className="hidden sm:inline">Sign up</span>
+              </button>
+            )}
           </div>
           <MessageList messages={messages} streaming={streaming} />
           {queue.length > 0 && (
@@ -441,6 +558,15 @@ export default function Chat() {
           <Composer onSend={send} disabled={busy} />
         </main>
       </div>
+
+      <AuthModal
+        open={authOpen}
+        mode={authMode}
+        clientId={clientId}
+        onClose={() => setAuthOpen(false)}
+        onSignedIn={handleSignedIn}
+        onSwitchMode={(m) => setAuthMode(m)}
+      />
     </div>
   );
 }
