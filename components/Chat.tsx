@@ -307,9 +307,12 @@ export default function Chat() {
               {
                 role: "assistant",
                 content:
-                  "💡 Loving the chat? Create a free account to save your conversations and pick up right where you left off on any device. No email confirmation needed — just your name, email, and a password. You can do it anytime from the button next to “New chat”. Totally optional!",
+                  "💡 Loving the chat? Create a free account to save your conversations and pick up right where you left off on any device. No email confirmation needed — just your name, email, and a password. Tap the button below to sign up!",
               },
             ]);
+            // Open the signup dialog automatically.
+            setAuthMode("signup");
+            setAuthOpen(true);
           }, 600);
         }
       }
