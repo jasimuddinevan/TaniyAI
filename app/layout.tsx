@@ -10,8 +10,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "TaniyAI",
-  description: "Chat with OpenRouter models. Deployable to Vercel.",
+  title: "Free AI Assistant — powered by TaniyAI",
+  description:
+    "A free AI assistant powered by TaniyAI. Chat instantly, no sign-up required.",
 };
 
 export default function RootLayout({
