@@ -42,18 +42,6 @@ export default function Sidebar({
       : status === "down"
       ? "bg-rose-500"
       : "bg-amber-400";
-  const statusText =
-    status === "operational"
-      ? "Service operational"
-      : status === "down"
-      ? "Service down"
-      : "Checking…";
-  const statusColor =
-    status === "operational"
-      ? "text-[var(--green)]"
-      : status === "down"
-      ? "text-rose-500"
-      : "text-amber-500";
 
   return (
     <div className="flex h-full flex-col gap-4">
@@ -68,9 +56,6 @@ export default function Sidebar({
               <span
                 className={`relative inline-flex h-3.5 w-3.5 rounded-full ${statusDot}`}
               />
-            </span>
-            <span className={`text-[12px] font-semibold ${statusColor}`}>
-              {statusText}
             </span>
           </div>
         </div>
