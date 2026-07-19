@@ -80,6 +80,12 @@ export default function AdminPage() {
 
   const [banned, setBanned] = useState<string[]>([]);
   const [search, setSearch] = useState("");
+  const PAGE_SIZE = 25;
+  const [page, setPage] = useState<{ users: number; conversations: number; sensitive: number }>({
+    users: 1,
+    conversations: 1,
+    sensitive: 1,
+  });
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [banReason, setBanReason] = useState("");
   const [newKey, setNewKey] = useState("");
@@ -655,7 +661,10 @@ export default function AdminPage() {
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage({ users: 1, conversations: 1, sensitive: 1 });
+            }}
             placeholder="Search by client ID or title…"
             className="flex-1 min-w-[200px] px-3 py-2 rounded-lg border border-[var(--line)] bg-[var(--cream)] outline-none focus:border-[var(--accent)] text-sm"
           />
@@ -708,13 +717,20 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {users
-                  .filter((u) =>
+                {(() => {
+                  const filtered = users.filter((u) =>
                     u.clientId.toLowerCase().includes(search.toLowerCase())
-                  )
-                  .map((u) => {
-                    const isBanned = banned.includes(u.clientId);
-                    return (
+                  );
+                  const total = filtered.length;
+                  const slice = filtered.slice(
+                    (page.users - 1) * PAGE_SIZE,
+                    page.users * PAGE_SIZE
+                  );
+                  return (
+                    <>
+                      {slice.map((u) => {
+                        const isBanned = banned.includes(u.clientId);
+                        return (
                   <tr key={u.clientId} className="border-b border-[var(--line)] last:border-0">
                     <td className="p-3 font-mono text-xs">{u.clientId}</td>
                     <td className="p-3">{u.conversations}</td>
@@ -763,19 +779,28 @@ export default function AdminPage() {
                       </button>
                     </td>
                   </tr>
-                    );
-                  })}
-                {users.filter((u) =>
-                  u.clientId.toLowerCase().includes(search.toLowerCase())
-                ).length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="p-4 text-center text-[var(--muted)]">
-                      No users yet.
-                    </td>
-                  </tr>
-                )}
+                        );
+                      })}
+                      {total === 0 && (
+                        <tr>
+                          <td colSpan={6} className="p-4 text-center text-[var(--muted)]">
+                            No users yet.
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
+            <Pager
+              page={page.users}
+              total={users.filter((u) =>
+                u.clientId.toLowerCase().includes(search.toLowerCase())
+              ).length}
+              pageSize={PAGE_SIZE}
+              onPage={(p) => setPage((s) => ({ ...s, users: p }))}
+            />
           </div>
         )}
 
@@ -792,13 +817,20 @@ export default function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {convs
-                  .filter(
+                {(() => {
+                  const filtered = convs.filter(
                     (c) =>
                       c.title.toLowerCase().includes(search.toLowerCase()) ||
                       c.clientId.toLowerCase().includes(search.toLowerCase())
-                  )
-                  .map((c) => (
+                  );
+                  const total = filtered.length;
+                  const slice = filtered.slice(
+                    (page.conversations - 1) * PAGE_SIZE,
+                    page.conversations * PAGE_SIZE
+                  );
+                  return (
+                    <>
+                      {slice.map((c) => (
                   <tr key={c.clientId + c.id} className="border-b border-[var(--line)] last:border-0">
                     <td className="p-3 max-w-[220px] truncate">{c.title}</td>
                     <td className="p-3 font-mono text-xs">{c.clientId.slice(0, 8)}…</td>
@@ -825,73 +857,43 @@ export default function AdminPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
-                {convs.filter(
-                  (c) =>
-                    c.title.toLowerCase().includes(search.toLowerCase()) ||
-                    c.clientId.toLowerCase().includes(search.toLowerCase())
-                ).length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-4 text-center text-[var(--muted)]">
-                      No conversations yet.
-                    </td>
-                  </tr>
-                )}
+                      ))}
+                      {total === 0 && (
+                        <tr>
+                          <td colSpan={5} className="p-4 text-center text-[var(--muted)]">
+                            No conversations yet.
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
-          </div>
-        )}
-
-        {tab === "conversations" && (
-          <div className="overflow-x-auto bg-[var(--card)] border border-[var(--line)] rounded-xl">
-            <table className="w-full text-sm">
-              <thead className="text-left text-[var(--muted)] border-b border-[var(--line)]">
-                <tr>
-                  <th className="p-3">Title</th>
-                  <th className="p-3">Client</th>
-                  <th className="p-3">Msgs</th>
-                  <th className="p-3">Updated</th>
-                  <th className="p-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {convs.map((c) => (
-                  <tr key={c.clientId + c.id} className="border-b border-[var(--line)] last:border-0">
-                    <td className="p-3 max-w-[220px] truncate">{c.title}</td>
-                    <td className="p-3 font-mono text-xs">{c.clientId.slice(0, 8)}…</td>
-                    <td className="p-3">{c.messageCount}</td>
-                    <td className="p-3">{fmtDate(c.updatedAt)}</td>
-                    <td className="p-3 flex gap-3">
-                      <button
-                        onClick={() => viewConversation(c.clientId, c.id)}
-                        className="text-[var(--accent)] hover:underline text-xs"
-                      >
-                        View
-                      </button>
-                      <button
-                        onClick={() => del("conversation", { id: c.id, clientId: c.clientId })}
-                        className="text-red-600 hover:underline text-xs"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-                {convs.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-4 text-center text-[var(--muted)]">
-                      No conversations yet.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+            <Pager
+              page={page.conversations}
+              total={convs.filter(
+                (c) =>
+                  c.title.toLowerCase().includes(search.toLowerCase()) ||
+                  c.clientId.toLowerCase().includes(search.toLowerCase())
+              ).length}
+              pageSize={PAGE_SIZE}
+              onPage={(p) => setPage((s) => ({ ...s, conversations: p }))}
+            />
           </div>
         )}
 
         {tab === "sensitive" && (
           <div className="space-y-3">
-            {sensitive.map((s) => (
+            {(() => {
+              const total = sensitive.length;
+              const slice = sensitive.slice(
+                (page.sensitive - 1) * PAGE_SIZE,
+                page.sensitive * PAGE_SIZE
+              );
+              return (
+                <>
+                  {slice.map((s) => (
               <div
                 key={s._id}
                 className="bg-[var(--card)] border border-[var(--line)] rounded-xl p-4"
@@ -914,10 +916,19 @@ export default function AdminPage() {
                 )}
                 <p className="mt-1 text-xs text-[var(--muted)]">{fmtDate(s.flaggedAt)}</p>
               </div>
-            ))}
-            {sensitive.length === 0 && (
-              <p className="text-[var(--muted)] text-sm">No sensitive messages flagged.</p>
-            )}
+                  ))}
+                  {total === 0 && (
+                    <p className="text-[var(--muted)] text-sm">No sensitive messages flagged.</p>
+                  )}
+                </>
+              );
+            })()}
+            <Pager
+              page={page.sensitive}
+              total={sensitive.length}
+              pageSize={PAGE_SIZE}
+              onPage={(p) => setPage((s) => ({ ...s, sensitive: p }))}
+            />
           </div>
         )}
 
@@ -1155,6 +1166,49 @@ function Stat({ label, value }: { label: string; value?: number }) {
     <div className="bg-[var(--card)] border border-[var(--line)] rounded-xl p-4">
       <div className="text-2xl font-semibold">{value ?? "—"}</div>
       <div className="text-xs text-[var(--muted)] mt-1">{label}</div>
+    </div>
+  );
+}
+
+// Reusable pager: shows "Page X / Y" with prev/next, plus a range label.
+function Pager({
+  page,
+  total,
+  pageSize,
+  onPage,
+}: {
+  page: number;
+  total: number;
+  pageSize: number;
+  onPage: (p: number) => void;
+}) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 mt-3 text-xs text-[var(--muted)]">
+      <span>
+        Showing {from}–{to} of {total}
+      </span>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => onPage(Math.max(1, page - 1))}
+          disabled={page <= 1}
+          className="rounded-lg border border-[var(--line)] bg-[var(--cream)] px-3 py-1.5 font-medium transition hover:border-[var(--accent)]/40 disabled:opacity-40"
+        >
+          Prev
+        </button>
+        <span className="px-2">
+          Page {page} / {pages}
+        </span>
+        <button
+          onClick={() => onPage(Math.min(pages, page + 1))}
+          disabled={page >= pages}
+          className="rounded-lg border border-[var(--line)] bg-[var(--cream)] px-3 py-1.5 font-medium transition hover:border-[var(--accent)]/40 disabled:opacity-40"
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 }
