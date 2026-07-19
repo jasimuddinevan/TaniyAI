@@ -89,6 +89,12 @@ export default function AdminPage() {
     model: "tencent/hy3:free",
     auto: false,
   });
+  // Live free-model list fetched from OpenRouter (real-time, capped at 10).
+  const [liveModels, setLiveModels] = useState<
+    { id: string; name: string; context_length: number }[]
+  >([]);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveErr, setLiveErr] = useState("");
   const [modelMsg, setModelMsg] = useState("");
   const [testState, setTestState] = useState<
     { status: "idle" | "testing" | "ok" | "fail"; ms?: number; text?: string; error?: string }
@@ -270,9 +276,31 @@ export default function AdminPage() {
     } catch {}
   }, []);
 
+  // Fetch the live free-model list from OpenRouter (real-time, up to 10).
+  const refreshModels = useCallback(async () => {
+    setLiveLoading(true);
+    setLiveErr("");
+    try {
+      const r = await fetch("/api/admin/models", { cache: "no-store" });
+      const j = await r.json();
+      if (r.ok && Array.isArray(j.models)) {
+        setLiveModels(j.models);
+      } else {
+        setLiveErr(j.error || "Failed to load models");
+      }
+    } catch (e: any) {
+      setLiveErr(e?.message || "Request failed");
+    } finally {
+      setLiveLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (authed) loadModel();
-  }, [authed, loadModel]);
+    if (authed) {
+      loadModel();
+      refreshModels();
+    }
+  }, [authed, loadModel, refreshModels]);
 
   const saveModel = async () => {
     setModelMsg("");
@@ -504,20 +532,29 @@ export default function AdminPage() {
             <div className="mt-5 grid gap-5 md:grid-cols-2">
               {/* model picker */}
               <div>
-                <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-                  Public model
-                </label>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                    Public model
+                  </label>
+                  <button
+                    onClick={refreshModels}
+                    disabled={liveLoading}
+                    className="inline-flex items-center gap-1 rounded-lg border border-[var(--line)] bg-[var(--cream)] px-2 py-1 text-[11px] font-medium text-[var(--muted)] transition hover:border-[var(--accent)]/40 disabled:opacity-60"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={liveLoading ? "animate-spin" : ""}>
+                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                      <path d="M21 3v6h-6" />
+                    </svg>
+                    {liveLoading ? "Refreshing…" : "Refresh"}
+                  </button>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: "tencent/hy3:free", name: "Tencent Hy3", free: true },
-                    { id: "nvidia/nemotron-3-nano-30b-a3b:free", name: "Nemotron 3 Nano 30B", free: true },
-                    { id: "cohere/north-mini-code:free", name: "Cohere North Mini", free: true },
-                    { id: "nvidia/nemotron-nano-12b-v2-vl:free", name: "Nemotron Nano VL", free: true },
-                    { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B", free: true },
-                    { id: "meta-llama/llama-3.2-3b-instruct:free", name: "Llama 3.2 3B", free: true },
-                    { id: "google/gemma-4-26b-a4b-it:free", name: "Gemma 4 26B", free: true },
-                    { id: "qwen/qwen3-coder:free", name: "Qwen3 Coder", free: true },
-                  ].map((m) => {
+                  {liveModels.length === 0 && !liveLoading && (
+                    <p className="col-span-2 text-xs text-[var(--muted)]">
+                      {liveErr || "No models loaded. Click Refresh."}
+                    </p>
+                  )}
+                  {liveModels.map((m) => {
                     const active = modelCfg.model === m.id;
                     return (
                       <button
@@ -530,15 +567,17 @@ export default function AdminPage() {
                         }`}
                       >
                         <span className="truncate font-medium">{m.name}</span>
-                        {m.free && (
-                          <span className="shrink-0 rounded-full bg-[var(--green-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--green)]">
-                            Free
-                          </span>
-                        )}
+                        <span className="shrink-0 rounded-full bg-[var(--green-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--green)]">
+                          Free
+                        </span>
                       </button>
                     );
                   })}
                 </div>
+                <p className="mt-2 text-[11px] text-[var(--muted)]">
+                  Live free models from OpenRouter (top 10 by context size). Use
+                  “Test model” to confirm one works with your key before saving.
+                </p>
               </div>
 
               {/* options + save */}
