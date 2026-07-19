@@ -62,6 +62,9 @@ export default function Chat() {
   const convFirst = useRef(true);
   const loadedFromDb = useRef(false);
   const nudgeShown = useRef(false);
+  // Becomes true once the initial localStorage + DB load has completed, so the
+  // persistence effect doesn't clobber saved chats with an empty array on mount.
+  const [convLoaded, setConvLoaded] = useState(false);
 
   // Load from localStorage before paint so saved messages/settings appear
   // immediately on reload (no blank flash). Also establish a stable clientId
@@ -142,7 +145,7 @@ export default function Chat() {
     };
     checkHealth();
     const healthTimer = setInterval(checkHealth, 30000);
-    return () => clearInterval(healthTimer);
+
     try {
       const convs = JSON.parse(localStorage.getItem(CONVERSATIONS_KEY) || "[]");
       if (Array.isArray(convs) && convs.length) {
@@ -177,15 +180,25 @@ export default function Chat() {
           return merged;
         });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        // Mark load complete so the persistence effect may write again.
+        setConvLoaded(true);
+      });
+
+    // Cleanup: stop the health poll on unmount.
+    return () => clearInterval(healthTimer);
   }, []);
 
-  // Persist conversations to localStorage (skip the first run so we don't overwrite)
+  // Persist conversations to localStorage. Skip until the initial load has
+  // finished (convLoaded) so we never overwrite saved chats with an empty
+  // array on mount. Also skip the very first render (convFirst).
   useEffect(() => {
     if (convFirst.current) {
       convFirst.current = false;
       return;
     }
+    if (!convLoaded) return;
     try {
       const list = conversations.map((c) => ({
         ...c,
@@ -201,7 +214,7 @@ export default function Chat() {
         setConversations(list);
       }
     } catch {}
-  }, [conversations, messages, activeId]);
+  }, [conversations, messages, activeId, convLoaded]);
 
   // Mirror conversations to MongoDB (cloud backup) whenever they change.
   useEffect(() => {
