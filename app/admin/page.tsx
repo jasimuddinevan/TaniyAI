@@ -283,6 +283,8 @@ export default function AdminPage() {
     });
     if (r.ok) {
       setModelMsg("Public model updated.");
+      // Re-probe the new model immediately so the status pill updates.
+      checkHealth(true);
     } else {
       const j = await r.json().catch(() => ({}));
       setModelMsg("Error: " + (j.error || "update failed"));
@@ -308,9 +310,12 @@ export default function AdminPage() {
     }
   };
 
-  const checkHealth = useCallback(async () => {
+  const checkHealth = useCallback(async (fresh = false) => {
     try {
-      const r = await fetch("/api/health", { cache: "no-store" });
+      const r = await fetch(
+        fresh ? "/api/health?fresh=1" : "/api/health",
+        { cache: "no-store" }
+      );
       if (r.ok) {
         const d = await r.json();
         setServiceStatus(d.status === "operational" ? "operational" : "down");
