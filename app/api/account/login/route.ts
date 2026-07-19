@@ -3,6 +3,7 @@ import {
   authenticate,
   USER_COOKIE,
   COOKIE_MAX_AGE,
+  addClientIdToAccount,
 } from "@/lib/auth";
 
 // POST /api/account/login — authenticate with email + password
@@ -29,6 +30,15 @@ export async function POST(req: NextRequest) {
       { error: "Incorrect email or password." },
       { status: 401 }
     );
+
+  // Link this device's clientId to the account (closes the IDOR).
+  const loginClientId =
+    (req.headers.get("x-client-id") || "").trim() ||
+    (body.clientId || "").trim() ||
+    "";
+  if (loginClientId) {
+    await addClientIdToAccount(account.email, loginClientId);
+  }
 
   const res = NextResponse.json(
     {

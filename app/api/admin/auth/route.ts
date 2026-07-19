@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   verifyAdminKey,
-  setAdminCookie,
-  clearAdminCookie,
+  createAdminSession,
+  destroyAdminSession,
   setAdminKey,
   requireAdmin,
 } from "@/lib/admin";
@@ -22,14 +22,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid admin key" }, { status: 401 });
   }
   const res = NextResponse.json({ ok: true });
-  setAdminCookie(res, key);
+  // Store a random session token in the cookie — never the raw key.
+  await createAdminSession(res);
   return res;
 }
 
 // DELETE /api/admin/auth  -> logout
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
   const res = NextResponse.json({ ok: true });
-  clearAdminCookie(res);
+  await destroyAdminSession(req, res);
   return res;
 }
 
@@ -53,8 +54,9 @@ export async function PATCH(req: NextRequest) {
   }
   try {
     await setAdminKey(newKey);
+    // Changing the key invalidates all sessions; start a fresh one for this admin.
     const res = NextResponse.json({ ok: true });
-    setAdminCookie(res, newKey);
+    await createAdminSession(res);
     return res;
   } catch (e: any) {
     return NextResponse.json({ error: e.message || "db error" }, { status: 500 });

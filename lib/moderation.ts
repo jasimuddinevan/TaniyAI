@@ -1,4 +1,5 @@
 import { getDb } from "./mongodb";
+import { getSessionAccount, ownsClientId } from "./auth";
 
 export interface BanEntry {
   _id?: unknown;
@@ -17,6 +18,25 @@ export async function isBanned(clientId: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+// Server-enforced ban check. If the request is authenticated, we check every
+// clientId owned by the account (so a banned user cannot evade the ban by
+// regenerating their clientId). Otherwise we fall back to the supplied one.
+export async function isBannedRequest(
+  req: any,
+  clientId: string
+): Promise<boolean> {
+  const account = await getSessionAccount(req);
+  if (account) {
+    const list: string[] = (account as any).clientIds || [];
+    for (const cid of list) {
+      if (await isBanned(cid)) return true;
+    }
+    if (account.clientId && (await isBanned(account.clientId))) return true;
+    return false;
+  }
+  return isBanned(clientId);
 }
 
 // Set or clear a ban for a clientId.

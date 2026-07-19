@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "./mongodb";
@@ -33,6 +34,7 @@ export async function getAdminKey(): Promise<string> {
 }
 
 // Persist a new admin key to the database and refresh the cache.
+// Changing the key invalidates all existing admin sessions.
 export async function setAdminKey(key: string): Promise<void> {
   const db = await getDb();
   await db
@@ -40,6 +42,7 @@ export async function setAdminKey(key: string): Promise<void> {
     .updateOne({ _id: "adminKey" } as any, { $set: { key } }, { upsert: true });
   cachedKey = key;
   cachedAt = Date.now();
+  await resetAdminSessions();
 }
 
 // ---- Public model configuration (set by admin) ----
@@ -104,17 +107,31 @@ export async function verifyAdminKey(key: string): Promise<boolean> {
   return mismatch === 0;
 }
 
-// Set the admin session cookie.
-export function setAdminCookie(res: NextResponse, key: string) {
-  res.cookies.set(ADMIN_COOKIE, key, {
+// ---- Admin session tokens (the cookie stores a random token, NOT the key) ----
+
+// Create a new admin session: generate a random token, persist it, and set
+// the session cookie. The raw admin key is never stored in the cookie.
+export async function createAdminSession(res: NextResponse): Promise<string> {
+  const token = crypto.randomBytes(32).toString("hex");
+  try {
+    const db = await getDb();
+    await db
+      .collection("adminSessions")
+      .insertOne({ token, createdAt: Date.now() } as any);
+  } catch {
+    // If the DB is unavailable we still set the cookie; auth is best-effort.
+  }
+  res.cookies.set(ADMIN_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: COOKIE_MAX_AGE,
   });
+  return token;
 }
 
+// Clear the admin session cookie (does not touch the DB session row).
 export function clearAdminCookie(res: NextResponse) {
   res.cookies.set(ADMIN_COOKIE, "", {
     httpOnly: true,
@@ -125,13 +142,48 @@ export function clearAdminCookie(res: NextResponse) {
   });
 }
 
-// Returns true if the current request is authenticated as admin.
+// Destroy the admin session both in the DB and the cookie.
+export async function destroyAdminSession(
+  req: NextRequest,
+  res: NextResponse
+): Promise<void> {
+  const token = req.cookies.get(ADMIN_COOKIE)?.value;
+  if (token) {
+    try {
+      const db = await getDb();
+      await db.collection("adminSessions").deleteOne({ token } as any);
+    } catch {}
+  }
+  clearAdminCookie(res);
+}
+
+// Invalidate every admin session (e.g. after the admin key is changed).
+export async function resetAdminSessions(): Promise<void> {
+  try {
+    const db = await getDb();
+    await db.collection("adminSessions").deleteMany({});
+  } catch {}
+}
+
+// Returns true if the current request carries a valid admin session token.
 export async function isAdminRequest(req?: NextRequest): Promise<boolean> {
-  const key = req
+  const token = req
     ? req.cookies.get(ADMIN_COOKIE)?.value
     : cookies().get(ADMIN_COOKIE)?.value;
-  if (!key) return false;
-  return verifyAdminKey(key);
+  if (!token) return false;
+  try {
+    const db = await getDb();
+    const doc = await db.collection("adminSessions").findOne({ token } as any);
+    if (!doc) return false;
+    // Expire sessions older than the cookie lifetime.
+    if (Date.now() - (doc.createdAt || 0) > COOKIE_MAX_AGE * 1000) {
+      await db.collection("adminSessions").deleteOne({ token } as any);
+      return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // Helper for admin API routes: returns a 401 response if not authenticated.

@@ -4,6 +4,7 @@ import {
   getAccountByEmail,
   USER_COOKIE,
   COOKIE_MAX_AGE,
+  addClientIdToAccount,
 } from "@/lib/auth";
 
 // GET /api/account — return the currently signed-in account (if any)
@@ -57,6 +58,9 @@ export async function POST(req: NextRequest) {
 
   if (!result.ok)
     return NextResponse.json({ error: result.error }, { status: 400 });
+
+  // Link this device's clientId to the new account (closes the IDOR).
+  await addClientIdToAccount(result.account.email, clientId);
 
   const res = NextResponse.json(
     {

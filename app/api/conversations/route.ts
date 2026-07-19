@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb, StoredConversation } from "@/lib/mongodb";
+import { getSessionAccount, ownsClientId } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,11 @@ export async function GET(req: NextRequest) {
   const clientId = req.nextUrl.searchParams.get("clientId");
   if (!clientId) {
     return NextResponse.json({ error: "clientId is required" }, { status: 400 });
+  }
+  // Ownership check: only the account that owns this clientId may read it.
+  const account = await getSessionAccount(req);
+  if (!account || !(await ownsClientId(account.email, clientId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   try {
     const db = await getDb();
@@ -40,6 +46,11 @@ export async function POST(req: NextRequest) {
   if (!clientId || !id) {
     return NextResponse.json({ error: "clientId and id are required" }, { status: 400 });
   }
+  // Ownership check: only the account that owns this clientId may write it.
+  const account = await getSessionAccount(req);
+  if (!account || !(await ownsClientId(account.email, clientId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   try {
     const db = await getDb();
     const doc: StoredConversation = {
@@ -68,6 +79,11 @@ export async function DELETE(req: NextRequest) {
   const clientId = req.nextUrl.searchParams.get("clientId");
   if (!id || !clientId) {
     return NextResponse.json({ error: "id and clientId are required" }, { status: 400 });
+  }
+  // Ownership check: only the account that owns this clientId may delete it.
+  const account = await getSessionAccount(req);
+  if (!account || !(await ownsClientId(account.email, clientId))) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   try {
     const db = await getDb();

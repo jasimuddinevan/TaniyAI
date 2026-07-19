@@ -300,6 +300,7 @@ export default function Chat() {
           // public model (plus auto-fallback) is decided server-side in
           // /api/chat. Sending a stale settings.model would override the
           // admin choice and disable auto-switching.
+          clientId, // used for the (signed-in-aware) ban check
           temperature: settings.temperature,
           max_tokens: settings.maxTokens,
           top_p: settings.topP,

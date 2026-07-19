@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isBanned } from "@/lib/moderation";
+import { isBannedRequest } from "@/lib/moderation";
 import { getModelConfig } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
@@ -43,9 +43,11 @@ export async function POST(req: NextRequest) {
 
   const messages = body.messages ?? [];
 
-  // Enforce ban by clientId (sent from the client on each request).
+  // Enforce ban. If the user is signed in we check all of their clientIds
+  // (so regenerating the clientId cannot evade a ban); otherwise the supplied
+  // clientId is checked as a fallback.
   const clientId = (body.clientId || "").toString().trim();
-  if (clientId && (await isBanned(clientId))) {
+  if (await isBannedRequest(req, clientId)) {
     return NextResponse.json(
       {
         error:

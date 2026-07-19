@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { NextRequest } from "next/server";
 import { getDb } from "./mongodb";
 
 export const USER_COOKIE = "taniyai_user";
@@ -85,4 +86,46 @@ export async function getAccountByEmail(email: string) {
   return (await db
     .collection("accounts")
     .findOne({ email: (email || "").trim().toLowerCase() })) as Account | null;
+}
+
+// Resolve the signed-in account from the session cookie (server-side).
+// Returns null when no valid session is present.
+export async function getSessionAccount(req: NextRequest): Promise<Account | null> {
+  const email = req.cookies.get(USER_COOKIE)?.value;
+  if (!email) return null;
+  return getAccountByEmail(email);
+}
+
+// Register a clientId as belonging to an account. We keep a list of clientIds
+// (one per device/browser) so conversations created on any device stay owned
+// by the account. This is what closes the IDOR: a request may only touch a
+// clientId that is actually linked to the signed-in account.
+export async function addClientIdToAccount(
+  email: string,
+  clientId: string
+): Promise<void> {
+  if (!email || !clientId) return;
+  const db = await getDb();
+  await db
+    .collection("accounts")
+    .updateOne(
+      { email: email.trim().toLowerCase() },
+      {
+        $addToSet: { clientIds: clientId } as any,
+        $setOnInsert: { clientId } as any,
+      } as any,
+      { upsert: true }
+    );
+}
+
+// Returns true if the given clientId is owned by the signed-in account.
+export async function ownsClientId(
+  email: string,
+  clientId: string
+): Promise<boolean> {
+  if (!email || !clientId) return false;
+  const account = await getAccountByEmail(email);
+  if (!account) return false;
+  const list: string[] = (account as any).clientIds || [];
+  return list.includes(clientId) || (account as any).clientId === clientId;
 }
