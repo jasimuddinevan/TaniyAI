@@ -510,11 +510,13 @@ export default function AdminPage() {
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { id: "tencent/hy3:free", name: "Tencent Hy3", free: true },
-                    { id: "openai/gpt-4o-mini", name: "GPT-4o Mini", free: false },
+                    { id: "nvidia/nemotron-3-nano-30b-a3b:free", name: "Nemotron 3 Nano 30B", free: true },
+                    { id: "cohere/north-mini-code:free", name: "Cohere North Mini", free: true },
                     { id: "nvidia/nemotron-nano-12b-v2-vl:free", name: "Nemotron Nano VL", free: true },
-                    { id: "anthropic/claude-sonnet-4.5", name: "Claude Sonnet 4.5", free: false },
-                    { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash", free: false },
-                    { id: "meta-llama/llama-3.1-8b-instruct", name: "Llama 3.1 8B", free: false },
+                    { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 70B", free: true },
+                    { id: "meta-llama/llama-3.2-3b-instruct:free", name: "Llama 3.2 3B", free: true },
+                    { id: "google/gemma-4-26b-a4b-it:free", name: "Gemma 4 26B", free: true },
+                    { id: "qwen/qwen3-coder:free", name: "Qwen3 Coder", free: true },
                   ].map((m) => {
                     const active = modelCfg.model === m.id;
                     return (

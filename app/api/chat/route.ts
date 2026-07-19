@@ -9,9 +9,10 @@ export const dynamic = "force-dynamic";
 const FALLBACK_MODELS = [
   "tencent/hy3:free",
   "nvidia/nemotron-nano-12b-v2-vl:free",
-  "meta-llama/llama-3.1-8b-instruct",
-  "openai/gpt-4o-mini",
-  "google/gemini-2.5-flash",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "google/gemma-4-26b-a4b-it:free",
+  "qwen/qwen3-coder:free",
+  "openai/gpt-oss-20b:free",
 ];
 
 // Static system message injected by the backend (users cannot override it).
