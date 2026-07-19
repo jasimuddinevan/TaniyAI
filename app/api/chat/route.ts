@@ -84,24 +84,53 @@ export async function POST(req: NextRequest) {
     };
     if (stop) body2.stop = stop.split(",").map((s: string) => s.trim()).filter(Boolean);
 
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": process.env.APP_URL || "https://openrouter-chat.vercel.app",
-        "X-Title": "TaniyAI",
-      },
-      body: JSON.stringify(body2),
-    });
-
-    if (res.ok && res.body) {
-      upstream = res;
+    let res: Response;
+    try {
+      res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": process.env.APP_URL || "https://openrouter-chat.vercel.app",
+          "X-Title": "TaniyAI",
+        },
+        body: JSON.stringify(body2),
+      });
+    } catch (e: any) {
+      // Network-level failure -> treat as a failed model, retry next if auto.
+      lastError = `Network error on ${model}: ${e?.message || e}`;
+      if (auto) continue;
       break;
     }
-    lastError = `Error ${res.status}: ${await res.text()}`;
-    // Only retry on quota/rate-limit errors when auto mode is enabled.
-    if (!auto || (res.status !== 402 && res.status !== 429)) break;
+
+    // A 200 with a JSON error payload (non-streaming) means the model failed.
+    // In streaming mode we trust res.ok (errors arrive as SSE data lines).
+    if (res.ok) {
+      if (body.stream !== false) {
+        upstream = res;
+        break;
+      }
+      const txt = await res.text();
+      let errored = false;
+      try {
+        const parsed = JSON.parse(txt);
+        if (parsed?.error) errored = true;
+      } catch {
+        // not JSON -> treat as a successful non-stream JSON response
+      }
+      if (errored) {
+        lastError = `Error on ${model}: ${txt}`;
+        if (auto) continue;
+        break;
+      }
+      upstream = new Response(txt, { status: res.status, headers: res.headers });
+      break;
+    }
+
+    lastError = `Error ${res.status} on ${model}: ${await res.text()}`;
+    // Retry on quota/rate-limit (402/429) or any 5xx when auto mode is on.
+    if (!auto) break;
+    if (res.status !== 402 && res.status !== 429 && res.status < 500) break;
   }
 
   if (!upstream || !upstream.ok || !upstream.body) {
